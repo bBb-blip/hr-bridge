@@ -1,0 +1,3157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Bridge — 人材紹介管理システム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0f1b2d;
+  --navy-mid: #1a2e48;
+  --navy-light: #243d5c;
+  --accent: #3b82f6;
+  --accent-light: #60a5fa;
+  --accent-pale: #dbeafe;
+  --green: #059669;
+  --green-pale: #d1fae5;
+  --amber: #d97706;
+  --amber-pale: #fef3c7;
+  --red: #dc2626;
+  --red-pale: #fee2e2;
+  --gray-pale: #f8fafc;
+  --gray-light: #f1f5f9;
+  --gray-mid: #cbd5e1;
+  --gray: #64748b;
+  --text: #0f172a;
+  --text-mid: #334155;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --white: #ffffff;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans JP', sans-serif; background: #f0f4f8; color: var(--text); min-height: 100vh; }
+
+/* Portal Switcher */
+.portal-switcher {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  background: var(--navy);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 48px;
+}
+.switcher-label { color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 0.08em; }
+.switcher-tabs { display: flex; gap: 2px; }
+.switcher-tab {
+  padding: 6px 16px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.55);
+  transition: all 0.2s; border: none; background: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.switcher-tab:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.07); }
+.switcher-tab.active { color: #fff; background: rgba(255,255,255,0.14); }
+.switcher-dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-admin { background: #f59e0b; }
+.dot-employer { background: #34d399; }
+.dot-candidate { background: #60a5fa; }
+.brand-name { color: white; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; }
+
+/* Portal Wrapper */
+.portal { display: none; padding-top: 48px; min-height: 100vh; }
+.portal.active { display: block; }
+
+/* ==================== SHARED LAYOUT ==================== */
+.layout { display: flex; min-height: calc(100vh - 48px); }
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: sticky; top: 48px; height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.sidebar-top { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+.sidebar-portal-label {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; margin-bottom: 4px;
+}
+.sidebar-user { font-size: 13px; font-weight: 500; color: var(--text); }
+.sidebar-user-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.nav { padding: 12px 8px; flex: 1; }
+.nav-group-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); padding: 8px 8px 4px; text-transform: uppercase; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px; color: var(--text-muted); transition: all 0.15s;
+  margin-bottom: 1px;
+}
+.nav-item:hover { background: var(--gray-light); color: var(--text); }
+.nav-item.active { background: var(--accent-pale); color: var(--accent); font-weight: 500; }
+.nav-icon { width: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.content { flex: 1; padding: 28px 32px; overflow-x: hidden; }
+.page-view { display: none; }
+.page-view.active { display: block; }
+
+/* ==================== COMPONENTS ==================== */
+.page-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+
+.metrics-grid { display: grid; gap: 14px; margin-bottom: 24px; }
+.metrics-grid-4 { grid-template-columns: repeat(4,1fr); }
+.metrics-grid-3 { grid-template-columns: repeat(3,1fr); }
+.metric-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow);
+}
+.metric-label { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.metric-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+.metric-value.accent { color: var(--accent); }
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-badge { margin-top: 6px; }
+
+.card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  margin-bottom: 20px; overflow: hidden;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  background: var(--gray-pale);
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.card-body { padding: 20px; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  background: var(--gray-pale); border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.table td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text-mid); vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #f8fafc; }
+
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 9px;
+  border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.badge-blue { background: var(--accent-pale); color: #1d4ed8; }
+.badge-green { background: var(--green-pale); color: #065f46; }
+.badge-amber { background: var(--amber-pale); color: #92400e; }
+.badge-red { background: var(--red-pale); color: #991b1b; }
+.badge-gray { background: var(--gray-light); color: var(--gray); }
+.badge-navy { background: #e0e7ff; color: #3730a3; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--white);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  color: var(--text); transition: all 0.15s; font-family: inherit;
+}
+.btn:hover { background: var(--gray-light); border-color: var(--gray-mid); }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: #2563eb; border-color: #2563eb; }
+.btn-success { background: var(--green); color: white; border-color: var(--green); }
+.btn-success:hover { background: #047857; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-danger { background: var(--red); color: white; border-color: var(--red); }
+
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-mid); margin-bottom: 5px; }
+.form-input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px; font-family: inherit;
+  color: var(--text); background: var(--white); transition: border 0.15s;
+}
+.form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.form-textarea { resize: vertical; min-height: 90px; }
+.form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* Month selector */
+.month-nav {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 12px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.month-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 2px 6px; font-size: 16px; }
+.month-btn:hover { color: var(--text); }
+
+/* Status timeline */
+.timeline { padding: 0; }
+.tl-item { display: flex; gap: 14px; padding-bottom: 18px; position: relative; }
+.tl-item:not(:last-child):before {
+  content: ''; position: absolute; left: 15px; top: 28px;
+  width: 1px; height: calc(100% - 14px); background: var(--border);
+}
+.tl-dot {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; margin-top: 2px;
+}
+.tl-dot-blue { background: var(--accent-pale); color: var(--accent); }
+.tl-dot-green { background: var(--green-pale); color: var(--green); }
+.tl-dot-amber { background: var(--amber-pale); color: var(--amber); }
+.tl-body { flex: 1; }
+.tl-time { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+.tl-text { font-size: 13px; color: var(--text-mid); }
+
+/* Invoice */
+.invoice-box {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px; background: white; max-width: 600px;
+}
+.invoice-header-row { display: flex; justify-content: space-between; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--navy); }
+.invoice-company-name { font-size: 22px; font-weight: 700; color: var(--navy); letter-spacing: 0.02em; }
+.invoice-no { font-size: 28px; font-weight: 300; color: var(--navy); }
+.invoice-to { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+.invoice-to strong { color: var(--text); font-size: 15px; }
+.invoice-total-row {
+  display: flex; justify-content: flex-end; margin-top: 12px;
+  padding-top: 12px; border-top: 2px solid var(--navy);
+}
+.invoice-total-label { font-size: 14px; color: var(--text-muted); margin-right: 20px; padding-top: 4px; }
+.invoice-total-amount { font-size: 24px; font-weight: 700; color: var(--navy); }
+
+/* Progress bar */
+.progress-bar { height: 6px; background: var(--gray-light); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+
+/* Tabs inside page */
+.inner-tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.inner-tab { padding: 8px 16px; font-size: 13px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; font-weight: 500; }
+.inner-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Interview button big */
+.btn-interview-done {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green); color: white; border: none;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: all 0.2s; box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+}
+.btn-interview-done:hover { background: #047857; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(5,150,105,0.4); }
+.btn-interview-done:disabled { background: var(--gray-mid); cursor: default; transform: none; box-shadow: none; }
+
+/* Notification dot */
+.notif-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); margin-left: 4px; vertical-align: middle;
+}
+
+/* Empty state */
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 14px; }
+
+/* Employer applicant card */
+.applicant-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.applicant-row:last-child { border-bottom: none; }
+.applicant-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-pale); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+.applicant-info { flex: 1; }
+.applicant-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.applicant-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Candidate entry sheet */
+.es-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.es-section:last-child { border-bottom: none; }
+.es-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 10px; }
+.es-field { display: flex; gap: 12px; margin-bottom: 8px; }
+.es-field-label { width: 120px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; padding-top: 1px; }
+.es-field-value { font-size: 13px; color: var(--text-mid); flex: 1; }
+
+/* Monthly calendar grid */
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+.cal-day-header { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 6px 0; }
+.cal-day { min-height: 56px; background: var(--white); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; }
+.cal-day-num { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 3px; }
+.cal-event { font-size: 10px; background: var(--accent-pale); color: var(--accent); border-radius: 3px; padding: 1px 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-event-green { background: var(--green-pale); color: var(--green); }
+.cal-empty { background: var(--gray-pale); opacity: 0.5; }
+
+/* Step indicator */
+.steps { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
+.step-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.step-active .step-num { background: var(--accent); color: white; }
+.step-done .step-num { background: var(--green); color: white; }
+.step-pending .step-num { background: var(--gray-light); color: var(--text-muted); }
+.step-active { color: var(--accent); font-weight: 600; }
+.step-done { color: var(--green); }
+.step-pending { color: var(--text-muted); }
+.step-line { width: 40px; height: 1px; background: var(--border); margin: 0 4px; }
+
+/* Job card for candidate portal */
+.job-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px 20px; background: white; margin-bottom: 12px;
+  transition: all 0.15s; cursor: pointer;
+}
+.job-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(59,130,246,0.12); }
+.job-card-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.job-card-company { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+.job-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.job-tag { background: var(--gray-light); color: var(--text-muted); padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+
+/* ==================== ADMIN SPECIFIC ==================== */
+#portal-admin .sidebar-portal-label { color: #f59e0b; }
+
+/* ==================== EMPLOYER SPECIFIC ==================== */
+#portal-employer .sidebar-portal-label { color: #34d399; }
+
+/* ==================== CANDIDATE SPECIFIC ==================== */
+#portal-candidate .sidebar-portal-label { color: #60a5fa; }
+
+/* Toggle switch */
+.toggle-switch { cursor:pointer; display:inline-block; }
+.toggle-track { width:44px; height:24px; border-radius:12px; background:var(--gray-mid); position:relative; transition:background 0.2s; }
+.toggle-track.on { background:var(--green); }
+.toggle-thumb { width:18px; height:18px; border-radius:50%; background:white; position:absolute; top:3px; left:3px; transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.toggle-track.on .toggle-thumb { transform:translateX(20px); }
+
+/* Message bubbles */
+.msg-bubble { max-width:85%; padding:9px 13px; border-radius:12px; font-size:12px; line-height:1.6; }
+.msg-bubble-employer { background:var(--accent); color:white; border-radius:12px 12px 4px 12px; align-self:flex-end; }
+.msg-bubble-candidate { background:var(--gray-light); color:var(--text-mid); border-radius:12px 12px 12px 4px; align-self:flex-start; }
+.msg-row { display:flex; flex-direction:column; gap:3px; }
+.msg-row-employer { align-items:flex-end; }
+.msg-row-candidate { align-items:flex-start; }
+.msg-time { font-size:10px; color:var(--text-muted); padding:0 4px; }
+.arow-selected { background:var(--accent-pale) !important; }
+
+/* Plan feature rows */
+.plan-feat { font-size:11px; color:var(--text-mid); padding:5px 0; border-bottom:1px solid var(--border); line-height:1.5; display:flex; gap:6px; align-items:flex-start; }
+.plan-feat:last-child { border-bottom:none; }
+.plan-feat::before { content:''; display:inline-block; width:14px; height:14px; border-radius:50%; flex-shrink:0; margin-top:1px; background-size:10px; background-repeat:no-repeat; background-position:center; }
+.plan-feat[data-ok="1"]::before { background-color:var(--green-pale); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23059669' stroke-width='3'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); }
+.plan-feat[data-ok="0"]::before { background-color:var(--gray-light); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E"); }
+
+/* ==================== LOGIN SCREEN ==================== */
+#login-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #0f1b2d 0%, #1a2e48 50%, #0f1b2d 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+#login-screen.hidden { display: none; }
+.login-box {
+  background: var(--white); border-radius: 16px;
+  padding: 40px 36px; width: 100%; max-width: 400px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+}
+.login-logo { text-align: center; margin-bottom: 28px; }
+.login-logo-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 14px;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  margin-bottom: 12px;
+}
+.login-brand { font-size: 20px; font-weight: 700; color: var(--navy); letter-spacing: 0.03em; }
+.login-brand-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.login-role-tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; margin-bottom: 24px;
+  background: var(--gray-light); border-radius: var(--radius-sm); padding: 4px;
+}
+.login-role-tab {
+  padding: 8px 4px; border-radius: 6px; cursor: pointer;
+  font-size: 11px; font-weight: 600; text-align: center;
+  color: var(--text-muted); border: none; background: none;
+  font-family: inherit; transition: all 0.15s; line-height: 1.4;
+}
+.login-role-tab.active { background: var(--white); color: var(--navy); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.login-field { margin-bottom: 16px; }
+.login-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-mid); margin-bottom: 6px; }
+.login-field input {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 14px; font-family: inherit;
+  color: var(--text); background: var(--white); transition: border 0.15s;
+}
+.login-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.login-error {
+  display: none; margin-bottom: 14px; padding: 10px 12px;
+  background: var(--red-pale); border: 1px solid #fca5a5;
+  border-radius: var(--radius-sm); font-size: 12px; color: #991b1b;
+}
+.login-btn {
+  width: 100%; padding: 13px; background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  color: white; border: none; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: all 0.2s; letter-spacing: 0.02em;
+}
+.login-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.4); }
+.login-btn:active { transform: translateY(0); }
+.login-footer { text-align: center; margin-top: 18px; }
+.login-link { font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: underline; background: none; border: none; font-family: inherit; }
+.login-link:hover { color: #1d4ed8; }
+
+/* Password reset screen */
+.reset-box {
+  background: var(--white); border-radius: 16px;
+  padding: 36px; width: 100%; max-width: 400px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+  display: none;
+}
+.reset-box.active { display: block; }
+.reset-step { display: none; }
+.reset-step.active { display: block; }
+
+/* Demo accounts badge */
+.demo-accounts {
+  margin-top: 20px; padding: 12px 14px;
+  background: rgba(255,255,255,0.06); border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.demo-accounts-title { font-size: 10px; color: rgba(255,255,255,0.45); margin-bottom: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+.demo-account-row { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.65); padding: 3px 0; }
+.demo-account-row span:last-child { font-family: 'DM Mono', monospace; color: rgba(255,255,255,0.45); }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="login-screen">
+  <div style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:440px">
+
+    <!-- Login box -->
+    <div class="login-box" id="login-box">
+      <div class="login-logo">
+        <div class="login-logo-mark">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="login-brand">HR Bridge</div>
+        <div class="login-brand-sub">人材紹介管理システム</div>
+      </div>
+
+      <!-- Role tabs -->
+      <div class="login-role-tabs">
+        <button class="login-role-tab active" onclick="selectRole('admin',this)">管理者</button>
+        <button class="login-role-tab" onclick="selectRole('employer',this)">求人先</button>
+        <button class="login-role-tab" onclick="selectRole('candidate',this)">求職者</button>
+      </div>
+
+      <!-- Error -->
+      <div class="login-error" id="login-error">IDまたはパスワードが正しくありません。</div>
+
+      <!-- Form -->
+      <div class="login-field">
+        <label>ログインID</label>
+        <input type="text" id="login-id" placeholder="IDを入力" autocomplete="username">
+      </div>
+      <div class="login-field">
+        <label style="display:flex;justify-content:space-between;align-items:center">
+          パスワード
+          <button class="login-link" onclick="showReset()" style="font-size:11px;font-weight:400">パスワードを忘れた方</button>
+        </label>
+        <div style="position:relative">
+          <input type="password" id="login-pw" placeholder="パスワードを入力" autocomplete="current-password" style="padding-right:42px">
+          <button onclick="togglePw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;display:flex;align-items:center">
+            <svg id="pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+        <input type="checkbox" id="remember-me" style="width:14px;height:14px;cursor:pointer">
+        <label for="remember-me" style="font-size:12px;color:var(--text-muted);cursor:pointer">ログイン状態を保持する</label>
+      </div>
+
+      <button class="login-btn" onclick="doLogin()">ログイン</button>
+
+      <div class="login-footer">
+        <span style="font-size:12px;color:var(--text-muted)">アカウントをお持ちでない方は　</span>
+        <button class="login-link" onclick="alert('管理者にお問い合わせください。\nadmin@hrbridge.jp')">管理者に問い合わせ</button>
+      </div>
+    </div>
+
+    <!-- Reset box -->
+    <div class="reset-box" id="reset-box">
+
+      <!-- Step 1: メール入力 -->
+      <div class="reset-step active" id="reset-step-1">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+          <button onclick="showLogin()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;gap:4px;font-size:13px;font-family:inherit;padding:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> 戻る
+          </button>
+          <div style="font-size:16px;font-weight:700;color:var(--navy)">パスワード再発行</div>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.7">
+          登録済みのメールアドレスを入力してください。再発行用のリンクをお送りします。
+        </div>
+        <div class="login-field">
+          <label>登録メールアドレス</label>
+          <input type="email" id="reset-email" placeholder="example@email.com">
+        </div>
+        <button class="login-btn" onclick="sendResetLink()">再発行リンクを送信</button>
+      </div>
+
+      <!-- Step 2: 送信完了 -->
+      <div class="reset-step" id="reset-step-2">
+        <div style="text-align:center;padding:16px 0">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">メールを送信しました</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.8;margin-bottom:12px">
+            <strong id="reset-email-display" style="color:var(--text)"></strong><br>に再発行リンクを送信しました。
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:20px;padding:10px 12px;background:var(--gray-light);border-radius:var(--radius-sm);text-align:left;line-height:1.7">
+            ※ 届かない場合は迷惑メールフォルダをご確認ください<br>
+            ※ リンクの有効期限は <strong>24時間</strong> です
+          </div>
+          <button class="login-btn" onclick="showLogin()">ログイン画面に戻る</button>
+        </div>
+      </div>
+
+      <!-- Step 3: 新しいパスワード設定 -->
+      <div class="reset-step" id="reset-step-3">
+        <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px">新しいパスワードの設定</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">英字・数字を含む8文字以上で設定してください。</div>
+        <div class="login-field">
+          <label>新しいパスワード</label>
+          <input type="password" id="new-pw" placeholder="8文字以上" oninput="checkStrength(this.value)">
+          <div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px">
+              <span>パスワード強度</span><span id="pw-strength-label">—</span>
+            </div>
+            <div style="height:4px;background:var(--gray-light);border-radius:2px">
+              <div id="pw-strength-fill" style="height:100%;border-radius:2px;width:0%;transition:width 0.3s,background 0.3s"></div>
+            </div>
+          </div>
+        </div>
+        <div class="login-field">
+          <label>確認用パスワード</label>
+          <input type="password" id="new-pw-confirm" placeholder="もう一度入力">
+        </div>
+        <div class="login-error" id="pw-reset-error">パスワードが一致しません。</div>
+        <button class="login-btn" onclick="setNewPassword()">パスワードを更新する</button>
+      </div>
+
+    </div>
+
+    <!-- Demo accounts -->
+    <div class="demo-accounts">
+      <div class="demo-accounts-title">デモアカウント（開発確認用）</div>
+      <div class="demo-account-row"><span>管理者</span><span>admin / admin123</span></div>
+      <div class="demo-account-row"><span>求人先</span><span>employer / emp123</span></div>
+      <div class="demo-account-row"><span>求職者</span><span>candidate / cand123</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Portal Switcher -->
+<div class="portal-switcher" id="portal-switcher" style="display:none">
+  <div class="brand-name">HR Bridge</div>
+  <div class="switcher-tabs" id="switcher-tabs-admin" style="display:none">
+    <button class="switcher-tab active" onclick="switchPortal('admin')">
+      <span class="switcher-dot dot-admin"></span> 管理者画面
+    </button>
+  </div>
+  <div class="switcher-tabs" id="switcher-tabs-employer" style="display:none">
+    <button class="switcher-tab active" onclick="switchPortal('employer')">
+      <span class="switcher-dot dot-employer"></span> 求人先ポータル
+    </button>
+  </div>
+  <div class="switcher-tabs" id="switcher-tabs-candidate" style="display:none">
+    <button class="switcher-tab active" onclick="switchPortal('candidate')">
+      <span class="switcher-dot dot-candidate"></span> 求職者ポータル
+    </button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="login-user-label" style="font-size:12px;color:rgba(255,255,255,0.6)"></span>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.8);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      ログアウト
+    </button>
+  </div>
+</div>
+
+<!-- ===================== ADMIN PORTAL ===================== -->
+<div class="portal active" id="portal-admin">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-portal-label">管理者</div>
+        <div class="sidebar-user">HR Bridge 管理部</div>
+        <div class="sidebar-user-sub">全データにアクセス可</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-group-label">概要</div>
+        <div class="nav-item active" onclick="showAdminPage('a-dashboard')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.4"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.4"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.8"/></svg></span>
+          ダッシュボード
+        </div>
+        <div class="nav-group-label">月間管理</div>
+        <div class="nav-item" onclick="showAdminPage('a-monthly')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="1" y1="7" x2="15" y2="7" stroke="currentColor" stroke-width="1"/><line x1="5" y1="1" x2="5" y2="5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="11" y1="1" x2="11" y2="5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+          月間面接カレンダー
+        </div>
+        <div class="nav-item" onclick="showAdminPage('a-interviews')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2 14c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></span>
+          面接管理
+        </div>
+        <div class="nav-group-label">求人・求職者</div>
+        <div class="nav-item" onclick="showAdminPage('a-employers')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="10" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></span>
+          求人先管理
+        </div>
+        <div class="nav-item" onclick="showAdminPage('a-candidates')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="5" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1"/><line x1="5" y1="9" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg></span>
+          求職者管理
+        </div>
+        <div class="nav-group-label">経営</div>
+        <div class="nav-item" onclick="showAdminPage('a-billing')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1"/><line x1="4" y1="11" x2="6" y2="11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+          請求書管理
+        </div>
+      </nav>
+    </div>
+
+    <div class="content">
+      <!-- A: Dashboard -->
+      <div class="page-view active" id="a-dashboard">
+        <div class="page-title">ダッシュボード</div>
+        <div class="page-sub">2025年4月 — 全体のリアルタイム状況</div>
+        <div class="metrics-grid metrics-grid-4">
+          <div class="metric-card">
+            <div class="metric-label">公開中求人</div>
+            <div class="metric-value">24</div>
+            <div class="metric-badge"><span class="badge badge-blue">+3 今月</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">登録求職者</div>
+            <div class="metric-value">187</div>
+            <div class="metric-badge"><span class="badge badge-green">+12 今月</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今月の面接数</div>
+            <div class="metric-value accent">38</div>
+            <div class="metric-badge"><span class="badge badge-blue">面接済み</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今月の請求額合計</div>
+            <div class="metric-value green" style="font-size:20px">¥1,900,000</div>
+            <div class="metric-badge"><span class="badge badge-green">38件 × ¥50,000</span></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">企業別 面接件数（今月）</span></div>
+            <table class="table">
+              <thead><tr><th>企業名</th><th>業界</th><th>面接数</th><th>請求額</th><th>状況</th></tr></thead>
+              <tbody>
+                <tr><td><strong>株式会社アルファ</strong></td><td>製造</td><td>8名</td><td>¥400,000</td><td><span class="badge badge-green">請求済み</span></td></tr>
+                <tr><td><strong>ベータ工業</strong></td><td>製造</td><td>6名</td><td>¥300,000</td><td><span class="badge badge-amber">請求待ち</span></td></tr>
+                <tr><td><strong>ガンマフーズ</strong></td><td>飲食</td><td>12名</td><td>¥600,000</td><td><span class="badge badge-amber">請求待ち</span></td></tr>
+                <tr><td><strong>デルタ物流</strong></td><td>物流</td><td>5名</td><td>¥250,000</td><td><span class="badge badge-green">請求済み</span></td></tr>
+                <tr><td><strong>イプシロン建設</strong></td><td>建設</td><td>7名</td><td>¥350,000</td><td><span class="badge badge-red">未請求</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">直近の面接活動</span></div>
+            <div style="padding:16px 20px">
+              <div class="timeline">
+                <div class="tl-item">
+                  <div class="tl-dot tl-dot-green">✓</div>
+                  <div class="tl-body">
+                    <div class="tl-time">2025/04/21 10:00</div>
+                    <div class="tl-text"><strong>田中 陽子</strong> → 株式会社アルファ 面接完了</div>
+                  </div>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-dot tl-dot-green">✓</div>
+                  <div class="tl-body">
+                    <div class="tl-time">2025/04/20 14:00</div>
+                    <div class="tl-text"><strong>鈴木 健太</strong> → ベータ工業 面接完了</div>
+                  </div>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-dot tl-dot-amber">!</div>
+                  <div class="tl-body">
+                    <div class="tl-time">2025/04/19</div>
+                    <div class="tl-text"><strong>佐藤 美咲</strong> → ガンマフーズ 面接調整中</div>
+                  </div>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-dot tl-dot-blue">→</div>
+                  <div class="tl-body">
+                    <div class="tl-time">2025/04/18</div>
+                    <div class="tl-text"><strong>山本 大輔</strong> → デルタ物流 ES送付済み</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- A: Monthly Calendar -->
+      <div class="page-view" id="a-monthly">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div class="page-title">月間面接カレンダー</div>
+            <div class="page-sub">企業・求職者ごとの面接スケジュール管理</div>
+          </div>
+          <div class="month-nav">
+            <button class="month-btn">‹</button>
+            <span>2025年 4月</span>
+            <button class="month-btn">›</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">面接スケジュール</span>
+            <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:var(--text-muted)">
+              <span style="width:10px;height:10px;border-radius:2px;background:var(--accent-pale);display:inline-block;border:1px solid #93c5fd"></span>面接予定
+              <span style="width:10px;height:10px;border-radius:2px;background:var(--green-pale);display:inline-block;border:1px solid #6ee7b7"></span>面接済み
+            </div>
+          </div>
+          <div style="padding:16px">
+            <div class="cal-grid">
+              <div class="cal-day-header">月</div><div class="cal-day-header">火</div><div class="cal-day-header">水</div><div class="cal-day-header">木</div><div class="cal-day-header">金</div><div class="cal-day-header">土</div><div class="cal-day-header">日</div>
+              <div class="cal-day cal-empty"><div class="cal-day-num" style="color:transparent">-</div></div>
+              <div class="cal-day"><div class="cal-day-num">1</div></div>
+              <div class="cal-day"><div class="cal-day-num">2</div></div>
+              <div class="cal-day"><div class="cal-day-num">3</div><div class="cal-event cal-event-green">田中→アルファ</div></div>
+              <div class="cal-day"><div class="cal-day-num">4</div></div>
+              <div class="cal-day"><div class="cal-day-num">5</div></div>
+              <div class="cal-day"><div class="cal-day-num">6</div></div>
+              <div class="cal-day"><div class="cal-day-num">7</div><div class="cal-event cal-event-green">鈴木→ベータ</div></div>
+              <div class="cal-day"><div class="cal-day-num">8</div></div>
+              <div class="cal-day"><div class="cal-day-num">9</div><div class="cal-event cal-event-green">山本→デルタ</div></div>
+              <div class="cal-day"><div class="cal-day-num">10</div><div class="cal-event cal-event-green">高橋→アルファ</div></div>
+              <div class="cal-day"><div class="cal-day-num">11</div></div>
+              <div class="cal-day"><div class="cal-day-num">12</div></div>
+              <div class="cal-day"><div class="cal-day-num">13</div></div>
+              <div class="cal-day"><div class="cal-day-num">14</div><div class="cal-event">中村→ガンマ</div></div>
+              <div class="cal-day"><div class="cal-day-num">15</div><div class="cal-event cal-event-green">渡辺→アルファ</div></div>
+              <div class="cal-day"><div class="cal-day-num">16</div><div class="cal-event cal-event-green">小林→デルタ</div></div>
+              <div class="cal-day"><div class="cal-day-num">17</div></div>
+              <div class="cal-day"><div class="cal-day-num">18</div></div>
+              <div class="cal-day"><div class="cal-day-num">19</div></div>
+              <div class="cal-day"><div class="cal-day-num">20</div><div class="cal-event cal-event-green">伊藤→ベータ</div></div>
+              <div class="cal-day"><div class="cal-day-num">21</div><div class="cal-event">佐藤→ガンマ</div><div class="cal-event">今日</div></div>
+              <div class="cal-day"><div class="cal-day-num">22</div></div>
+              <div class="cal-day"><div class="cal-day-num">23</div></div>
+              <div class="cal-day"><div class="cal-day-num">24</div></div>
+              <div class="cal-day"><div class="cal-day-num">25</div><div class="cal-event">加藤→建設</div></div>
+              <div class="cal-day"><div class="cal-day-num">26</div></div>
+              <div class="cal-day"><div class="cal-day-num">27</div></div>
+              <div class="cal-day"><div class="cal-day-num">28</div></div>
+              <div class="cal-day"><div class="cal-day-num">29</div></div>
+              <div class="cal-day"><div class="cal-day-num">30</div></div>
+              <div class="cal-day cal-empty"></div><div class="cal-day cal-empty"></div><div class="cal-day cal-empty"></div><div class="cal-day cal-empty"></div><div class="cal-day cal-empty"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">4月の面接一覧（全件）</span><span class="badge badge-blue">38件</span></div>
+          <table class="table">
+            <thead><tr><th>日付</th><th>求職者</th><th>求人先企業</th><th>職種</th><th>状況</th><th>マージン</th></tr></thead>
+            <tbody>
+              <tr><td>04/03</td><td>田中 陽子</td><td>株式会社アルファ</td><td>営業部長</td><td><span class="badge badge-green">面接済み</span></td><td>¥50,000</td></tr>
+              <tr><td>04/07</td><td>鈴木 健太</td><td>ベータ工業</td><td>工場長</td><td><span class="badge badge-green">面接済み</span></td><td>¥50,000</td></tr>
+              <tr><td>04/09</td><td>山本 大輔</td><td>デルタ物流</td><td>倉庫管理</td><td><span class="badge badge-green">面接済み</span></td><td>¥50,000</td></tr>
+              <tr><td>04/10</td><td>高橋 誠</td><td>株式会社アルファ</td><td>営業</td><td><span class="badge badge-green">面接済み</span></td><td>¥50,000</td></tr>
+              <tr><td>04/14</td><td>中村 恵</td><td>ガンマフーズ</td><td>店長</td><td><span class="badge badge-amber">面接予定</span></td><td>—</td></tr>
+              <tr><td>04/21</td><td>佐藤 美咲</td><td>ガンマフーズ</td><td>SV</td><td><span class="badge badge-amber">面接予定</span></td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- A: Interview Management -->
+      <div class="page-view" id="a-interviews">
+        <div class="page-title">面接管理</div>
+        <div class="page-sub">プランに応じてマージンが自動判定されます。「面接済み」で記録 → 請求書に即時反映</div>
+
+        <!-- Plan legend -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
+            <span style="background:linear-gradient(90deg,#d97706,#fbbf24);color:white;padding:2px 9px;border-radius:4px;font-size:10px;font-weight:700">GOLD</span>面接マージン免除・上位表示
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
+            <span style="background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 9px;border-radius:4px;font-size:10px;font-weight:700">SILVER</span>面接マージン免除
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
+            <span style="background:var(--gray-light);color:var(--gray);padding:2px 9px;border-radius:4px;font-size:10px;font-weight:600">STD</span>面接ごとにマージン発生
+          </div>
+        </div>
+
+        <div class="card">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>求職者</th><th>求人先</th><th>プラン</th><th>面接日</th><th>状況</th>
+                <th style="text-align:right">マージン</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="interview-table-body">
+              <tr>
+                <td><strong>田中 陽子</strong></td>
+                <td>株式会社アルファ</td>
+                <td><span style="background:linear-gradient(90deg,#d97706,#fbbf24);color:white;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">GOLD</span></td>
+                <td style="font-family:'DM Mono',monospace;font-size:12px">04/03 10:00</td>
+                <td><span class="badge badge-green">面接済み</span></td>
+                <td style="text-align:right">
+                  <span class="badge badge-green" style="font-size:11px">¥0 免除</span>
+                </td>
+                <td><button class="btn btn-sm" onclick="showAdminPage('a-billing')">請求書へ</button></td>
+              </tr>
+              <tr>
+                <td><strong>鈴木 健太</strong></td>
+                <td>ベータ工業</td>
+                <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">STD</span></td>
+                <td style="font-family:'DM Mono',monospace;font-size:12px">04/07 14:00</td>
+                <td><span class="badge badge-green">面接済み</span></td>
+                <td style="text-align:right;font-weight:600;color:var(--text)">¥5,000</td>
+                <td><button class="btn btn-sm" onclick="showAdminPage('a-billing')">請求書へ</button></td>
+              </tr>
+              <tr id="interview-row-3">
+                <td><strong>佐藤 美咲</strong></td>
+                <td>ガンマフーズ</td>
+                <td><span style="background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">SILVER</span></td>
+                <td style="font-family:'DM Mono',monospace;font-size:12px">04/21 13:00</td>
+                <td id="status-3"><span class="badge badge-amber">面接予定</span></td>
+                <td style="text-align:right" id="margin-3"><span style="font-size:11px;color:var(--text-muted)">—</span></td>
+                <td>
+                  <button class="btn-interview-done" id="btn-done-3" onclick="markInterviewDone(3,'ガンマフーズ','silver')">
+                    ✓ 面接済みにする
+                  </button>
+                </td>
+              </tr>
+              <tr id="interview-row-4">
+                <td><strong>中村 恵</strong></td>
+                <td>ガンマフーズ</td>
+                <td><span style="background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">SILVER</span></td>
+                <td style="font-family:'DM Mono',monospace;font-size:12px">04/25 11:00</td>
+                <td id="status-4"><span class="badge badge-amber">面接予定</span></td>
+                <td style="text-align:right" id="margin-4"><span style="font-size:11px;color:var(--text-muted)">—</span></td>
+                <td>
+                  <button class="btn-interview-done" id="btn-done-4" onclick="markInterviewDone(4,'ガンマフーズ','silver')">
+                    ✓ 面接済みにする
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>山本 大輔</strong></td>
+                <td>デルタ物流</td>
+                <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">STD</span></td>
+                <td style="font-family:'DM Mono',monospace;font-size:12px">—</td>
+                <td><span class="badge badge-gray">応募中</span></td>
+                <td style="text-align:right"><span style="font-size:11px;color:var(--text-muted)">—</span></td>
+                <td><button class="btn btn-sm">面接日設定</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 面接済み後の通知 -->
+        <div class="card" id="auto-billing-notice" style="display:none">
+          <div class="card-header" id="billing-notice-header">
+            <span class="card-title" id="billing-notice-title"></span>
+            <button class="btn btn-sm btn-success" onclick="showAdminPage('a-billing')">請求書を確認 →</button>
+          </div>
+          <div style="padding:12px 20px;font-size:13px;color:var(--text-muted)" id="billing-notice-body"></div>
+        </div>
+      </div>
+
+      <!-- A: Employers -->
+      <div class="page-view" id="a-employers">
+        <div class="page-title">求人先管理</div>
+        <div class="page-sub">登録企業のプランとマージン設定を一覧で管理</div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">登録企業（24社）</span><button class="btn btn-sm btn-primary">+ 企業追加</button></div>
+          <table class="table">
+            <thead>
+              <tr><th>企業名</th><th>業界</th><th>プラン</th><th>求人数</th><th>今月面接</th><th>マージン設定</th><th>未請求額</th><th>請求状況</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>株式会社アルファ</strong></td><td>製造</td>
+                <td><span style="background:linear-gradient(90deg,#d97706,#fbbf24);color:white;padding:2px 9px;border-radius:4px;font-size:10px;font-weight:700">GOLD</span></td>
+                <td>3件</td><td>8名</td>
+                <td><span class="badge badge-green" style="font-size:11px">マージンなし</span></td>
+                <td>¥0</td>
+                <td><span class="badge badge-green">月額請求のみ</span></td>
+                <td><button class="btn btn-sm">詳細</button></td>
+              </tr>
+              <tr>
+                <td><strong>ベータ工業</strong></td><td>製造</td>
+                <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 9px;border-radius:4px;font-size:10px;font-weight:600">STD</span></td>
+                <td>2件</td><td>6名</td>
+                <td><span class="badge badge-amber" style="font-size:11px">¥5,000/件</span></td>
+                <td>¥30,000</td>
+                <td><span class="badge badge-amber">請求待ち</span></td>
+                <td><button class="btn btn-sm">詳細</button></td>
+              </tr>
+              <tr>
+                <td><strong>ガンマフーズ</strong></td><td>飲食</td>
+                <td><span style="background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 9px;border-radius:4px;font-size:10px;font-weight:700">SILVER</span></td>
+                <td>5件</td><td>12名</td>
+                <td><span class="badge badge-green" style="font-size:11px">マージンなし</span></td>
+                <td>¥0</td>
+                <td><span class="badge badge-green">月額請求のみ</span></td>
+                <td><button class="btn btn-sm">詳細</button></td>
+              </tr>
+              <tr>
+                <td><strong>デルタ物流</strong></td><td>物流</td>
+                <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 9px;border-radius:4px;font-size:10px;font-weight:600">STD</span></td>
+                <td>2件</td><td>5名</td>
+                <td><span class="badge badge-amber" style="font-size:11px">¥5,000/件</span></td>
+                <td>¥0</td>
+                <td><span class="badge badge-green">請求済み</span></td>
+                <td><button class="btn btn-sm">詳細</button></td>
+              </tr>
+              <tr>
+                <td><strong>イプシロン建設</strong></td><td>建設</td>
+                <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 9px;border-radius:4px;font-size:10px;font-weight:600">STD</span></td>
+                <td>1件</td><td>7名</td>
+                <td><span class="badge badge-amber" style="font-size:11px">¥2,000/件</span></td>
+                <td>¥14,000</td>
+                <td><span class="badge badge-red">未請求</span></td>
+                <td><button class="btn btn-sm">詳細</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- A: Candidates -->
+      <div class="page-view" id="a-candidates">
+        <div class="page-title">求職者管理</div>
+        <div class="page-sub">登録求職者のエントリーシート・面接状況</div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">求職者（187名）</span></div>
+          <table class="table">
+            <thead><tr><th>氏名</th><th>希望職種</th><th>状況</th><th>面接先</th><th>登録日</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><strong>田中 陽子</strong></td><td>マーケティング管理職</td><td><span class="badge badge-green">面接済み</span></td><td>株式会社アルファ</td><td>03/20</td><td><button class="btn btn-sm">ES確認</button></td></tr>
+              <tr><td><strong>鈴木 健太</strong></td><td>営業</td><td><span class="badge badge-green">面接済み</span></td><td>ベータ工業</td><td>03/22</td><td><button class="btn btn-sm">ES確認</button></td></tr>
+              <tr><td><strong>佐藤 美咲</strong></td><td>店舗管理</td><td><span class="badge badge-amber">面接予定</span></td><td>ガンマフーズ</td><td>04/01</td><td><button class="btn btn-sm">ES確認</button></td></tr>
+              <tr><td><strong>山本 大輔</strong></td><td>物流管理</td><td><span class="badge badge-gray">応募中</span></td><td>—</td><td>04/08</td><td><button class="btn btn-sm">ES確認</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- A: Billing -->
+      <div class="page-view" id="a-billing">
+        <div class="page-title">請求書管理</div>
+        <div class="page-sub">プランごとに請求内容が自動分類されます</div>
+
+        <!-- 4 metrics -->
+        <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+          <div class="metric-card">
+            <div class="metric-label">月額プラン収益</div>
+            <div class="metric-value green" style="font-size:20px">¥70,000</div>
+            <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">GOLD ¥30,000 + SILVER ¥20,000×2</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">面接マージン収益</div>
+            <div class="metric-value accent" style="font-size:20px">¥44,000</div>
+            <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">STD企業のみ（免除分は含まず）</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今月の合計収益</div>
+            <div class="metric-value" style="font-size:20px">¥114,000</div>
+            <div class="metric-badge" style="margin-top:6px"><span class="badge badge-blue">月額＋マージン合算</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">マージン免除（免除額）</div>
+            <div class="metric-value" style="font-size:20px;color:var(--text-muted)">¥100,000</div>
+            <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">GOLD/SILVER 20件分</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <!-- Billing table -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">企業別 請求一覧</span></div>
+            <table class="table">
+              <thead>
+                <tr><th>企業名</th><th>プラン</th><th>面接数</th><th>請求内容</th><th>金額</th><th>状況</th><th></th></tr>
+              </thead>
+              <tbody>
+                <!-- GOLD: アルファ -->
+                <tr>
+                  <td><strong>株式会社アルファ</strong></td>
+                  <td><span style="background:linear-gradient(90deg,#d97706,#fbbf24);color:white;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700">GOLD</span></td>
+                  <td>8名</td>
+                  <td style="font-size:12px">
+                    月額 ¥30,000<br>
+                    <span class="badge badge-green" style="margin-top:3px;font-size:10px">面接マージン ¥0（免除）</span>
+                  </td>
+                  <td style="font-weight:700">¥30,000</td>
+                  <td><span class="badge badge-green">請求済み</span></td>
+                  <td><button class="btn btn-sm" onclick="showInvoice('アルファ','gold',8)">確認</button></td>
+                </tr>
+                <!-- STD: ベータ工業 -->
+                <tr>
+                  <td><strong>ベータ工業</strong></td>
+                  <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">STD</span></td>
+                  <td>6名</td>
+                  <td style="font-size:12px">
+                    面接マージン 6名 × ¥5,000
+                  </td>
+                  <td style="font-weight:700">¥30,000</td>
+                  <td><span class="badge badge-amber">請求待ち</span></td>
+                  <td><button class="btn btn-sm btn-primary" onclick="showInvoice('ベータ工業','std',6)">請求書発行</button></td>
+                </tr>
+                <!-- SILVER: ガンマフーズ -->
+                <tr>
+                  <td><strong>ガンマフーズ</strong></td>
+                  <td><span style="background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700">SILVER</span></td>
+                  <td id="gamma-count">12名</td>
+                  <td style="font-size:12px">
+                    月額 ¥20,000<br>
+                    <span class="badge badge-green" style="margin-top:3px;font-size:10px">面接マージン ¥0（免除）</span>
+                  </td>
+                  <td style="font-weight:700" id="gamma-amount">¥20,000</td>
+                  <td><span class="badge badge-amber">請求待ち</span></td>
+                  <td><button class="btn btn-sm btn-primary" onclick="showInvoice('ガンマフーズ','silver',gammaCount)">請求書発行</button></td>
+                </tr>
+                <!-- STD: デルタ物流 -->
+                <tr>
+                  <td><strong>デルタ物流</strong></td>
+                  <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">STD</span></td>
+                  <td>5名</td>
+                  <td style="font-size:12px">面接マージン 5名 × ¥5,000</td>
+                  <td style="font-weight:700">¥25,000</td>
+                  <td><span class="badge badge-green">請求済み</span></td>
+                  <td><button class="btn btn-sm" onclick="showInvoice('デルタ物流','std',5)">確認</button></td>
+                </tr>
+                <!-- STD: イプシロン（アルバイト） -->
+                <tr>
+                  <td><strong>イプシロン建設</strong></td>
+                  <td><span style="background:var(--gray-light);color:var(--gray);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">STD</span></td>
+                  <td>7名</td>
+                  <td style="font-size:12px">面接マージン 7名 × ¥2,000</td>
+                  <td style="font-weight:700">¥14,000</td>
+                  <td><span class="badge badge-red">未請求</span></td>
+                  <td><button class="btn btn-sm btn-primary" onclick="showInvoice('イプシロン建設','std-arb',7)">請求書発行</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Invoice preview -->
+          <div class="card" id="invoice-preview-card">
+            <div class="card-header">
+              <span class="card-title">請求書プレビュー</span>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm">PDF出力</button>
+                <button class="btn btn-sm btn-primary">メール送付</button>
+              </div>
+            </div>
+            <div style="padding:20px">
+              <div class="empty-state" id="invoice-empty">← 企業を選択して<br>請求書を確認</div>
+              <div id="invoice-content" style="display:none">
+                <div class="invoice-box">
+                  <div class="invoice-header-row">
+                    <div>
+                      <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px">HR BRIDGE 株式会社</div>
+                      <div style="font-size:11px;color:var(--text-muted)">東京都渋谷区○○ 1-2-3</div>
+                      <div style="font-size:11px;color:var(--text-muted)">TEL: 03-0000-0000</div>
+                    </div>
+                    <div style="text-align:right">
+                      <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">請求書</div>
+                      <div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--navy)" id="inv-no">INV-2025-04-001</div>
+                      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">発行日：2025年4月21日</div>
+                      <div style="font-size:11px;color:var(--text-muted)">支払期限：2025年4月30日</div>
+                    </div>
+                  </div>
+                  <div class="invoice-to">請求先：<strong id="inv-company">—</strong> 御中</div>
+                  <!-- Plan badge in invoice -->
+                  <div style="margin-bottom:12px" id="inv-plan-badge"></div>
+                  <table class="table" style="margin-bottom:0" id="inv-rows-table">
+                    <thead><tr><th>内容</th><th style="text-align:right">数量</th><th style="text-align:right">単価</th><th style="text-align:right">金額</th></tr></thead>
+                    <tbody id="inv-rows"></tbody>
+                  </table>
+                  <div class="invoice-total-row">
+                    <div>
+                      <div style="font-size:11px;color:var(--text-muted);text-align:right;margin-bottom:2px">消費税（10%）: <span id="inv-tax">—</span></div>
+                      <div class="invoice-total-amount" id="inv-total">¥—</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /content -->
+  </div>
+</div>
+
+<!-- ===================== EMPLOYER PORTAL ===================== -->
+<div class="portal" id="portal-employer">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-portal-label">求人先ポータル</div>
+        <div class="sidebar-user">株式会社アルファ</div>
+        <div class="sidebar-user-sub">採用担当：山田 太郎</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-group-label">メイン</div>
+        <div class="nav-item active" onclick="showEmployerPage('e-dashboard')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.4"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.4"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.8"/></svg></span>
+          ダッシュボード
+        </div>
+        <div class="nav-group-label">求人</div>
+        <div class="nav-item" onclick="showEmployerPage('e-jobs')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="10" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></span>
+          求人情報管理
+        </div>
+        <div class="nav-item" onclick="showEmployerPage('e-newjob')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          求人登録
+        </div>
+        <div class="nav-group-label">応募者</div>
+        <div class="nav-item" onclick="showEmployerPage('e-applicants')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2 14c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></span>
+          応募者一覧 <span class="notif-dot"></span>
+        </div>
+        <div class="nav-group-label">請求</div>
+        <div class="nav-item" onclick="showEmployerPage('e-invoices')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="13" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="5" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1"/><line x1="5" y1="9" x2="11" y2="9" stroke="currentColor" stroke-width="1"/><line x1="5" y1="12" x2="8" y2="12" stroke="currentColor" stroke-width="1"/></svg></span>
+          請求書確認
+        </div>
+      </nav>
+    </div>
+
+    <div class="content">
+      <!-- E: Dashboard -->
+      <div class="page-view active" id="e-dashboard">
+        <div class="page-title">求人先ダッシュボード</div>
+        <div class="page-sub">株式会社アルファ — 採用状況の概要</div>
+        <div class="metrics-grid metrics-grid-3">
+          <div class="metric-card"><div class="metric-label">公開中の求人</div><div class="metric-value">3</div></div>
+          <div class="metric-card"><div class="metric-label">今月の応募者数</div><div class="metric-value accent">12</div></div>
+          <div class="metric-card"><div class="metric-label">面接実施数</div><div class="metric-value green">8</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">今月の採用進捗</span></div>
+          <div style="padding:20px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:6px"><span>応募 → 面接完了率</span><span style="font-weight:600;color:var(--text)">67%（8/12名）</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:67%"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">新着応募者 <span class="notif-dot"></span></span><button class="btn btn-sm" onclick="showEmployerPage('e-applicants')">全員見る</button></div>
+          <div style="padding:4px 16px">
+            <div class="applicant-row">
+              <div class="applicant-avatar">佐</div>
+              <div class="applicant-info">
+                <div class="applicant-name">佐藤 美咲</div>
+                <div class="applicant-meta">希望職種：店舗管理 / 希望年収：480万〜</div>
+              </div>
+              <span class="badge badge-blue">書類審査中</span>
+              <button class="btn btn-sm">ES確認</button>
+            </div>
+            <div class="applicant-row">
+              <div class="applicant-avatar">山</div>
+              <div class="applicant-info">
+                <div class="applicant-name">山本 大輔</div>
+                <div class="applicant-meta">希望職種：営業 / 希望年収：400万〜</div>
+              </div>
+              <span class="badge badge-blue">書類審査中</span>
+              <button class="btn btn-sm">ES確認</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E: Jobs -->
+      <div class="page-view" id="e-jobs">
+        <div class="page-title">求人情報管理</div>
+        <div class="page-sub">公開中・下書きの求人を管理できます</div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">登録求人（3件）</span><button class="btn btn-sm btn-primary" onclick="showEmployerPage('e-newjob')">+ 新規登録</button></div>
+          <table class="table">
+            <thead><tr><th>職種</th><th>年収レンジ</th><th>応募数</th><th>面接数</th><th>状況</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><strong>営業部長</strong></td><td>600〜800万</td><td>8名</td><td>5名</td><td><span class="badge badge-green">公開中</span></td><td><button class="btn btn-sm">編集</button></td></tr>
+              <tr><td><strong>営業マネージャー</strong></td><td>500〜650万</td><td>4名</td><td>3名</td><td><span class="badge badge-green">公開中</span></td><td><button class="btn btn-sm">編集</button></td></tr>
+              <tr><td><strong>海外営業</strong></td><td>550〜700万</td><td>0名</td><td>0名</td><td><span class="badge badge-gray">下書き</span></td><td><button class="btn btn-sm">編集</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- E: New Job -->
+      <div class="page-view" id="e-newjob">
+        <div class="page-title">求人登録</div>
+        <div class="page-sub">必要情報を入力して公開申請してください</div>
+
+        <!-- Photo Upload Section -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <span class="card-title">求人ヘッダー写真</span>
+            <span style="font-size:11px;color:var(--text-muted)">最大3枚まで ／ JPG・PNG・WEBP</span>
+          </div>
+          <div class="card-body">
+            <div id="photo-preview-area" style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;min-height:120px;align-items:center">
+              <div class="photo-slot" id="slot-0" onclick="triggerUpload(0)" style="width:180px;height:120px;border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--gray-pale);transition:all 0.2s;position:relative;overflow:hidden">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-mid)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span style="font-size:11px;color:var(--text-muted);margin-top:6px">写真1（メイン）</span>
+              </div>
+              <div class="photo-slot" id="slot-1" onclick="triggerUpload(1)" style="width:180px;height:120px;border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--gray-pale);transition:all 0.2s;position:relative;overflow:hidden">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-mid)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span style="font-size:11px;color:var(--text-muted);margin-top:6px">写真2</span>
+              </div>
+              <div class="photo-slot" id="slot-2" onclick="triggerUpload(2)" style="width:180px;height:120px;border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--gray-pale);transition:all 0.2s;position:relative;overflow:hidden">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-mid)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span style="font-size:11px;color:var(--text-muted);margin-top:6px">写真3</span>
+              </div>
+            </div>
+            <input type="file" id="file-input-0" accept="image/*" style="display:none" onchange="handlePhotoUpload(0,this)">
+            <input type="file" id="file-input-1" accept="image/*" style="display:none" onchange="handlePhotoUpload(1,this)">
+            <input type="file" id="file-input-2" accept="image/*" style="display:none" onchange="handlePhotoUpload(2,this)">
+            <p style="font-size:11px;color:var(--text-muted)">
+              ※ 1枚目がヘッダーのメイン画像として使用されます。クリックして写真を選択してください。
+            </p>
+            <!-- Header Preview -->
+            <div id="header-preview-wrap" style="display:none;margin-top:16px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase">求人カードのプレビュー</div>
+              <div id="header-preview" style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);max-width:480px">
+                <div id="header-img-strip" style="height:160px;background:var(--gray-light);position:relative;overflow:hidden">
+                  <img id="header-main-img" src="" style="width:100%;height:100%;object-fit:cover;display:block">
+                  <div id="header-sub-imgs" style="position:absolute;bottom:8px;right:8px;display:flex;gap:6px">
+                    <img id="header-sub-1" src="" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:2px solid white;display:none">
+                    <img id="header-sub-2" src="" style="width:52px;height:40px;object-fit:cover;border-radius:4px;border:2px solid white;display:none">
+                  </div>
+                  <div style="position:absolute;top:10px;left:12px" id="preview-emp-badge"></div>
+                </div>
+                <div style="padding:14px 16px;background:white">
+                  <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px" id="preview-title">職種名がここに表示されます</div>
+                  <div style="font-size:12px;color:var(--text-muted)" id="preview-company">株式会社アルファ</div>
+                  <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap" id="preview-tags"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Form -->
+        <div class="card">
+          <div class="card-body">
+            <!-- Employment Type Selector -->
+            <div class="form-group">
+              <label class="form-label">雇用形態 *</label>
+              <div style="display:flex;gap:10px;margin-top:4px" id="emp-type-group">
+                <label class="emp-type-btn" id="emp-btn-seiki" onclick="selectEmpType('seiki')" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--accent);border-radius:var(--radius);cursor:pointer;background:var(--accent-pale);transition:all 0.2s">
+                  <input type="radio" name="emp_type" value="seiki" checked style="display:none">
+                  <div style="width:36px;height:36px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                  </div>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--accent)">正社員</div>
+                    <div style="font-size:11px;color:var(--accent);opacity:0.8;margin-top:1px">面接マージン ¥5,000/件</div>
+                  </div>
+                </label>
+                <label class="emp-type-btn" id="emp-btn-keiyaku" onclick="selectEmpType('keiyaku')" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--white);transition:all 0.2s">
+                  <input type="radio" name="emp_type" value="keiyaku" style="display:none">
+                  <div style="width:36px;height:36px;border-radius:8px;background:var(--gray-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </div>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text)">契約社員</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:1px">面接マージン ¥5,000/件</div>
+                  </div>
+                </label>
+                <label class="emp-type-btn" id="emp-btn-arbeit" onclick="selectEmpType('arbeit')" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--white);transition:all 0.2s">
+                  <input type="radio" name="emp_type" value="arbeit" style="display:none">
+                  <div style="width:36px;height:36px;border-radius:8px;background:var(--gray-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text)">アルバイト</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:1px">面接マージン ¥2,000/件</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Contract period (契約社員のみ) -->
+            <div id="keiyaku-options" style="display:none">
+              <div class="card" style="background:var(--gray-pale);border:1px solid var(--border);margin-bottom:16px">
+                <div class="card-body" style="padding:14px 16px">
+                  <div style="font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:10px">契約期間</div>
+                  <div class="grid3">
+                    <div class="form-group" style="margin-bottom:0">
+                      <label class="form-label">契約開始日</label>
+                      <input class="form-input" type="date">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                      <label class="form-label">契約終了日</label>
+                      <input class="form-input" type="date">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                      <label class="form-label">更新の可否</label>
+                      <select class="form-input form-select"><option>更新あり（条件による）</option><option>更新なし</option><option>更新あり（原則）</option></select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Part-time duration (アルバイトのみ) -->
+            <div id="arbeit-options" style="display:none">
+              <div class="card" style="background:var(--amber-pale);border:1px solid #fcd34d;margin-bottom:16px">
+                <div class="card-body" style="padding:14px 16px">
+                  <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:10px">アルバイト区分</div>
+                  <div style="display:flex;gap:12px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:var(--radius-sm);border:2px solid var(--amber);background:white;flex:1" id="arbeit-tanki-btn" onclick="selectArbeit('tanki')">
+                      <input type="radio" name="arbeit_type" value="tanki" checked style="display:none">
+                      <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0" id="arbeit-dot-tanki"></div>
+                      <div>
+                        <div style="font-size:13px;font-weight:700;color:var(--amber)">短期</div>
+                        <div style="font-size:11px;color:var(--text-muted)">3ヶ月未満</div>
+                      </div>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:var(--radius-sm);border:2px solid var(--border);background:white;flex:1" id="arbeit-choki-btn" onclick="selectArbeit('choki')">
+                      <input type="radio" name="arbeit_type" value="choki" style="display:none">
+                      <div style="width:8px;height:8px;border-radius:50%;background:var(--gray-mid);flex-shrink:0" id="arbeit-dot-choki"></div>
+                      <div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text)">長期</div>
+                        <div style="font-size:11px;color:var(--text-muted)">3ヶ月以上</div>
+                      </div>
+                    </label>
+                  </div>
+                  <div style="margin-top:12px;padding:8px 12px;background:rgba(217,119,6,0.08);border-radius:var(--radius-sm);font-size:12px;color:#92400e">
+                    ※ アルバイトの面接マージンは <strong>¥2,000/件</strong> が適用されます
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wage / Salary fields -->
+            <div id="wage-fields-seiki" style="display:block">
+              <div class="grid2">
+                <div class="form-group"><label class="form-label">年収（下限）万円</label><input class="form-input" type="number" placeholder="400" id="salary-min" oninput="updatePreviewTags()"></div>
+                <div class="form-group"><label class="form-label">年収（上限）万円</label><input class="form-input" type="number" placeholder="600" id="salary-max" oninput="updatePreviewTags()"></div>
+              </div>
+            </div>
+            <div id="wage-fields-arbeit" style="display:none">
+              <div class="grid2">
+                <div class="form-group"><label class="form-label">時給（下限）円</label><input class="form-input" type="number" placeholder="1100" id="wage-min" oninput="updatePreviewTags()"></div>
+                <div class="form-group"><label class="form-label">時給（上限）円</label><input class="form-input" type="number" placeholder="1500" id="wage-max" oninput="updatePreviewTags()"></div>
+              </div>
+            </div>
+
+            <div class="grid2" style="margin-top:4px">
+              <div class="form-group"><label class="form-label">職種名 *</label><input class="form-input" placeholder="例：ホールスタッフ" id="job-title-input" oninput="updatePreviewTitle(this.value)"></div>
+              <div class="form-group"><label class="form-label">勤務地</label><input class="form-input" placeholder="東京都渋谷区" id="job-location" oninput="updatePreviewTags()"></div>
+            </div>
+            <div class="form-group"><label class="form-label">募集人数</label><input class="form-input" type="number" placeholder="3" style="max-width:120px"></div>
+            <div class="form-group"><label class="form-label">仕事内容・業務詳細 *</label><textarea class="form-input form-textarea" placeholder="担当していただく業務の詳細を入力してください"></textarea></div>
+            <div class="form-group"><label class="form-label">必要なスキル・経験</label><textarea class="form-input form-textarea" style="min-height:70px" placeholder="必須・歓迎のスキルや経験年数など"></textarea></div>
+
+            <!-- ★ 掲載プラン選択 -->
+            <div style="margin-bottom:20px">
+              <div style="font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:4px">掲載プラン</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">月額プランは毎月自動更新です。いつでも解約できます。</div>
+
+              <!-- Plan comparison table header -->
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+
+                <!-- Standard -->
+                <div id="plan-std" onclick="selectPlan('std')"
+                  style="border:2px solid var(--accent);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all 0.2s;background:var(--accent-pale)">
+                  <div style="background:var(--gray-light);padding:12px 14px;text-align:center;border-bottom:1px solid var(--border)">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--gray);text-transform:uppercase;margin-bottom:6px">Standard</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--text)">無料</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">ずっと0円</div>
+                  </div>
+                  <div style="padding:12px 14px">
+                    <div class="plan-feat" data-ok="1">通常掲載（求人一覧に表示）</div>
+                    <div class="plan-feat" data-ok="1">応募者管理・ES確認</div>
+                    <div class="plan-feat" data-ok="1">メッセージ機能</div>
+                    <div class="plan-feat" data-ok="0">面接マージンなし</div>
+                    <div class="plan-feat" data-ok="0">上位表示・バッジ表示</div>
+                  </div>
+                  <div style="padding:0 14px 14px">
+                    <div style="text-align:center;padding:7px;border-radius:var(--radius-sm);background:var(--gray-mid);color:white;font-size:12px;font-weight:700" id="plan-std-btn">選択中</div>
+                  </div>
+                </div>
+
+                <!-- Silver -->
+                <div id="plan-silver" onclick="selectPlan('silver')"
+                  style="border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all 0.2s;background:var(--white)">
+                  <div style="background:linear-gradient(135deg,#64748b,#94a3b8);padding:12px 14px;text-align:center">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.8);text-transform:uppercase;margin-bottom:6px">Silver</div>
+                    <div style="font-size:22px;font-weight:700;color:white">¥20,000</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px">/ 月（税込 ¥22,000）</div>
+                  </div>
+                  <div style="padding:12px 14px">
+                    <div class="plan-feat" data-ok="1">通常掲載（求人一覧に表示）</div>
+                    <div class="plan-feat" data-ok="1">応募者管理・ES確認</div>
+                    <div class="plan-feat" data-ok="1">メッセージ機能</div>
+                    <div class="plan-feat" data-ok="1" style="font-weight:600;color:#475569"><strong>面接対応 月額無制限</strong><br><span style="font-size:10px;font-weight:400;color:var(--text-muted)">追加マージンなし・何名でも定額</span></div>
+                    <div class="plan-feat" data-ok="0">上位表示・バッジ表示</div>
+                  </div>
+                  <div style="padding:0 14px 14px">
+                    <div style="text-align:center;padding:7px;border-radius:var(--radius-sm);background:#94a3b8;color:white;font-size:12px;font-weight:700" id="plan-silver-btn">このプランを選ぶ</div>
+                  </div>
+                </div>
+
+                <!-- Gold -->
+                <div id="plan-gold" onclick="selectPlan('gold')"
+                  style="border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all 0.2s;background:var(--white);position:relative">
+                  <!-- Recommended ribbon -->
+                  <div style="position:absolute;top:10px;right:-22px;background:#d97706;color:white;font-size:9px;font-weight:700;padding:3px 28px;transform:rotate(35deg);letter-spacing:0.06em">おすすめ</div>
+                  <div style="background:linear-gradient(135deg,#92400e,#d97706,#fbbf24);padding:12px 14px;text-align:center">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.85);text-transform:uppercase;margin-bottom:6px">Gold</div>
+                    <div style="font-size:22px;font-weight:700;color:white">¥30,000</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">/ 月（税込 ¥33,000）</div>
+                  </div>
+                  <div style="padding:12px 14px">
+                    <div class="plan-feat" data-ok="1">通常掲載（求人一覧に表示）</div>
+                    <div class="plan-feat" data-ok="1">応募者管理・ES確認</div>
+                    <div class="plan-feat" data-ok="1">メッセージ機能</div>
+                    <div class="plan-feat" data-ok="1" style="font-weight:600;color:#92400e"><strong>面接対応 月額無制限</strong><br><span style="font-size:10px;font-weight:400;color:var(--text-muted)">追加マージンなし・何名でも定額</span></div>
+                    <div class="plan-feat" data-ok="1" style="font-weight:600;color:#d97706"><strong>🏆 求人検索で上位表示</strong><br><span style="font-size:10px;font-weight:400;color:var(--text-muted)">「GOLD」バッジ付きで目立つ掲載</span></div>
+                  </div>
+                  <div style="padding:0 14px 14px">
+                    <div style="text-align:center;padding:7px;border-radius:var(--radius-sm);background:linear-gradient(90deg,#d97706,#fbbf24);color:white;font-size:12px;font-weight:700" id="plan-gold-btn">このプランを選ぶ</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Caution note -->
+              <div style="display:flex;gap:10px;padding:12px 14px;background:#fefce8;border:1px solid #fde68a;border-radius:var(--radius-sm);margin-bottom:12px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <div style="font-size:11px;color:#92400e;line-height:1.7">
+                  <strong>応募者が0名の場合について</strong><br>
+                  シルバー・ゴールドプランは月額固定のため、応募・面接が0件でも月額料金が発生します。求人内容・条件を充実させることで応募率の向上が見込まれますが、掲載期間中の応募保証はございません。あらかじめご了承のうえお申し込みください。
+                </div>
+              </div>
+
+              <!-- Active plan summary -->
+              <div id="plan-summary" style="padding:10px 14px;background:var(--gray-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:10px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                選択中：<strong id="plan-summary-name" style="color:var(--text)">スタンダード（無料）</strong>
+                <span id="plan-summary-badge"></span>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+              <button class="btn">下書き保存</button>
+              <button class="btn btn-primary" onclick="alert('公開申請を送信しました。管理者が確認後に公開されます。')">公開申請する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E: Applicants -->
+      <div class="page-view" id="e-applicants">
+        <div class="page-title">応募者一覧</div>
+        <div class="page-sub">エントリーシートの確認・面接ステータスの登録・システム内メッセージ</div>
+
+        <!-- 重要ルール通知 -->
+        <div style="display:flex;gap:10px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-sm);margin-bottom:16px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div style="font-size:11px;color:#991b1b;line-height:1.8">
+            <strong>重要：面接ステータスは必ず選択してください</strong><br>
+            ・応募者との連絡はシステム内メッセージのみ対応しています。メール・電話番号は非公開です。<br>
+            ・面接日から <strong>2日以内</strong> に「面接あり」または「面接なし」を選択してください。<strong>未選択の場合は「面接あり（課金対象）」として自動処理</strong>されます。<br>
+            ・「面接なし」を選択した場合、不採用通知が応募者に自動送信されます。
+          </div>
+        </div>
+
+        <div class="inner-tabs">
+          <button class="inner-tab active" onclick="filterApplicants('all',this)">全員</button>
+          <button class="inner-tab" onclick="filterApplicants('review',this)">書類審査中</button>
+          <button class="inner-tab" onclick="filterApplicants('interview',this)">面接予定</button>
+          <button class="inner-tab" onclick="filterApplicants('done',this)">面接済み</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 420px;gap:16px;align-items:start">
+
+          <!-- 応募者リスト -->
+          <div style="display:flex;flex-direction:column;gap:12px">
+
+            <!-- 田中（面接済み・選択済み） -->
+            <div class="card" style="padding:0;overflow:hidden" id="ecard-0">
+              <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectApplicant('田中 陽子','done',0)">
+                <div class="applicant-avatar">田</div>
+                <div class="applicant-info" style="flex:1">
+                  <div class="applicant-name">田中 陽子</div>
+                  <div class="applicant-meta">営業部長希望 / 34歳 / 経験10年</div>
+                </div>
+                <span class="badge badge-green">面接済み ✓</span>
+                <button class="btn btn-sm" onclick="event.stopPropagation();openES(0)">ES確認</button>
+                <button class="btn btn-sm" onclick="selectApplicant('田中 陽子','done',0);event.stopPropagation()">メッセージ</button>
+              </div>
+              <!-- 面接ステータス（選択済み） -->
+              <div style="padding:10px 18px;background:var(--green-pale);display:flex;align-items:center;gap:10px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                <span style="font-size:12px;color:#065f46;font-weight:600">面接あり — 登録済み（課金対象）</span>
+              </div>
+            </div>
+
+            <!-- 高橋（面接済み・選択済み） -->
+            <div class="card" style="padding:0;overflow:hidden" id="ecard-1">
+              <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectApplicant('高橋 誠','done',1)">
+                <div class="applicant-avatar">高</div>
+                <div class="applicant-info" style="flex:1">
+                  <div class="applicant-name">高橋 誠</div>
+                  <div class="applicant-meta">営業マネージャー希望 / 38歳 / 経験12年</div>
+                </div>
+                <span class="badge badge-green">面接済み ✓</span>
+                <button class="btn btn-sm" onclick="event.stopPropagation();openES(1)">ES確認</button>
+                <button class="btn btn-sm" onclick="selectApplicant('高橋 誠','done',1);event.stopPropagation()">メッセージ</button>
+              </div>
+              <div style="padding:10px 18px;background:var(--green-pale);display:flex;align-items:center;gap:10px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                <span style="font-size:12px;color:#065f46;font-weight:600">面接あり — 登録済み（課金対象）</span>
+              </div>
+            </div>
+
+            <!-- 佐藤（書類審査・ステータス未選択） -->
+            <div class="card" style="padding:0;overflow:hidden;border:2px solid #fca5a5" id="ecard-2">
+              <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectApplicant('佐藤 美咲','review',2)">
+                <div class="applicant-avatar">佐</div>
+                <div class="applicant-info" style="flex:1">
+                  <div class="applicant-name">佐藤 美咲</div>
+                  <div class="applicant-meta">営業部長希望 / 41歳 / 経験15年</div>
+                </div>
+                <span class="badge badge-amber">面接予定</span>
+                <button class="btn btn-sm" onclick="event.stopPropagation();openES(2)">ES確認</button>
+                <button class="btn btn-sm" onclick="selectApplicant('佐藤 美咲','review',2);event.stopPropagation()">メッセージ</button>
+              </div>
+              <!-- ステータス未選択 → 必須入力エリア -->
+              <div style="padding:12px 18px;background:#fef2f2" id="status-select-2">
+                <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                  面接ステータスを選択してください（必須）
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button onclick="setInterviewStatus(2,'done')" style="flex:1;padding:9px 12px;background:var(--green);color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                    面接あり（課金対象）
+                  </button>
+                  <button onclick="setInterviewStatus(2,'none')" style="flex:1;padding:9px 12px;background:white;color:#dc2626;border:2px solid #fca5a5;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    面接なし（不採用通知を送る）
+                  </button>
+                </div>
+                <div style="margin-top:8px;font-size:10px;color:#991b1b">※ 未選択のまま2日が経過すると「面接あり」として自動処理されます</div>
+              </div>
+            </div>
+
+            <!-- 山本（書類審査・ステータス未選択） -->
+            <div class="card" style="padding:0;overflow:hidden;border:2px solid #fca5a5" id="ecard-3">
+              <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectApplicant('山本 大輔','review',3)">
+                <div class="applicant-avatar">山</div>
+                <div class="applicant-info" style="flex:1">
+                  <div class="applicant-name">山本 大輔</div>
+                  <div class="applicant-meta">営業希望 / 28歳 / 経験3年</div>
+                </div>
+                <span class="badge badge-blue">書類審査中</span>
+                <button class="btn btn-sm" onclick="event.stopPropagation();openES(3)">ES確認</button>
+                <button class="btn btn-sm" onclick="selectApplicant('山本 大輔','review',3);event.stopPropagation()">メッセージ</button>
+              </div>
+              <div style="padding:12px 18px;background:#fef2f2" id="status-select-3">
+                <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                  面接ステータスを選択してください（必須）
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button onclick="setInterviewStatus(3,'done')" style="flex:1;padding:9px 12px;background:var(--green);color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                    面接あり（課金対象）
+                  </button>
+                  <button onclick="setInterviewStatus(3,'none')" style="flex:1;padding:9px 12px;background:white;color:#dc2626;border:2px solid #fca5a5;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    面接なし（不採用通知を送る）
+                  </button>
+                </div>
+                <div style="margin-top:8px;font-size:10px;color:#991b1b">※ 未選択のまま2日が経過すると「面接あり」として自動処理されます</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 右：メッセージ + ES モーダル -->
+          <div style="display:flex;flex-direction:column;gap:12px">
+
+            <!-- ES確認パネル -->
+            <div class="card" id="es-panel" style="display:none">
+              <div class="card-header">
+                <span class="card-title" id="es-panel-name">エントリーシート</span>
+                <button class="btn btn-sm" onclick="document.getElementById('es-panel').style.display='none'">閉じる</button>
+              </div>
+              <div style="padding:16px 20px;font-size:13px" id="es-panel-body"></div>
+              <!-- プライバシー注意書き -->
+              <div style="margin:0 16px 16px;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:var(--radius-sm)">
+                <div style="font-size:11px;color:#0369a1;display:flex;align-items:center;gap:6px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <strong>個人情報保護：</strong>メールアドレス・電話番号は非公開です。連絡はシステム内メッセージをご利用ください。
+                </div>
+              </div>
+            </div>
+
+            <!-- メッセージパネル -->
+            <div class="card" id="msg-panel" style="position:sticky;top:72px">
+              <div id="msg-panel-empty" style="padding:48px 20px;text-align:center;color:var(--text-muted);font-size:13px">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-mid)" stroke-width="1.5" style="display:block;margin:0 auto 10px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                応募者を選択して<br>メッセージを確認
+              </div>
+              <div id="msg-panel-body" style="display:none;flex-direction:column">
+                <div class="card-header">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div class="applicant-avatar" id="msg-avatar" style="width:32px;height:32px;font-size:12px">田</div>
+                    <div>
+                      <div style="font-size:13px;font-weight:600" id="msg-name">田中 陽子</div>
+                      <div style="font-size:11px;color:var(--text-muted)" id="msg-status">面接済み</div>
+                    </div>
+                  </div>
+                  <div style="font-size:10px;color:var(--text-muted);text-align:right">
+                    システム内のみ<br>個人情報非公開
+                  </div>
+                </div>
+                <div id="msg-history" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto"></div>
+                <div style="border-top:1px solid var(--border);padding:12px 14px;display:flex;gap:8px;align-items:flex-end">
+                  <textarea id="msg-input" class="form-input form-textarea" style="min-height:56px;max-height:100px;flex:1;font-size:12px;resize:none" placeholder="メッセージを入力（求職者にメール通知されます）"></textarea>
+                  <button class="btn btn-primary" style="flex-shrink:0;align-self:flex-end" onclick="sendEmployerMessage()">送信</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E: Invoices -->
+      <div class="page-view" id="e-invoices">
+        <div class="page-title">請求書確認</div>
+        <div class="page-sub">HR Bridgeから届いた請求書の一覧</div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>請求書番号</th><th>発行日</th><th>面接件数</th><th>金額（税込）</th><th>支払期限</th><th>状況</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:'DM Mono',monospace;font-size:12px">INV-2025-03-001</td><td>2025/03/31</td><td>5名</td><td>¥275,000</td><td>2025/04/15</td><td><span class="badge badge-green">支払済み</span></td></tr>
+              <tr><td style="font-family:'DM Mono',monospace;font-size:12px">INV-2025-04-001</td><td>2025/04/21</td><td>8名</td><td>¥440,000</td><td>2025/04/30</td><td><span class="badge badge-amber">支払待ち</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CANDIDATE PORTAL ===================== -->
+<div class="portal" id="portal-candidate">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-portal-label">求職者ポータル</div>
+        <div class="sidebar-user">田中 陽子</div>
+        <div class="sidebar-user-sub">登録済み求職者</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-group-label">メイン</div>
+        <div class="nav-item active" onclick="showCandidatePage('c-dashboard')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.4"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.4"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.8"/></svg></span>
+          マイページ
+        </div>
+        <div class="nav-group-label">エントリーシート</div>
+        <div class="nav-item" onclick="showCandidatePage('c-entrysheet')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="5" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1"/><line x1="5" y1="9" x2="11" y2="9" stroke="currentColor" stroke-width="1"/><line x1="5" y1="12" x2="8" y2="12" stroke="currentColor" stroke-width="1"/></svg></span>
+          エントリーシート
+        </div>
+        <div class="nav-group-label">求人・応募</div>
+        <div class="nav-item" onclick="showCandidatePage('c-jobs')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          求人を探す
+        </div>
+        <div class="nav-item" onclick="showCandidatePage('c-applications')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" stroke-width="1.2" fill="none" rx="1"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></span>
+          応募履歴
+        </div>
+        <div class="nav-group-label">設定</div>
+        <div class="nav-item" onclick="showCandidatePage('c-notifications')">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a5 5 0 0 1 5 5v3l1.5 2H1.5L3 10V7a5 5 0 0 1 5-5z" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></span>
+          メール通知設定
+      </nav>
+    </div>
+
+    <div class="content">
+      <!-- C: Dashboard -->
+      <div class="page-view active" id="c-dashboard">
+        <div class="page-title">マイページ</div>
+        <div class="page-sub">田中 陽子 さん — 就職活動の状況</div>
+        <div class="metrics-grid metrics-grid-3">
+          <div class="metric-card"><div class="metric-label">応募件数</div><div class="metric-value">3</div></div>
+          <div class="metric-card"><div class="metric-label">面接済み</div><div class="metric-value green">1</div></div>
+          <div class="metric-card"><div class="metric-label">書類審査中</div><div class="metric-value accent">2</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">応募状況</span></div>
+          <div style="padding:4px 16px 12px">
+            <div class="applicant-row">
+              <div style="flex:1">
+                <div class="applicant-name">株式会社アルファ / 営業部長</div>
+                <div class="applicant-meta">面接日：2025/04/03 10:00</div>
+              </div>
+              <span class="badge badge-green">面接済み ✓</span>
+            </div>
+            <div class="applicant-row">
+              <div style="flex:1">
+                <div class="applicant-name">ベータ工業 / 工場マネージャー</div>
+                <div class="applicant-meta">応募日：2025/04/10</div>
+              </div>
+              <span class="badge badge-blue">書類審査中</span>
+            </div>
+            <div class="applicant-row">
+              <div style="flex:1">
+                <div class="applicant-name">ガンマフーズ / エリアSV</div>
+                <div class="applicant-meta">応募日：2025/04/15</div>
+              </div>
+              <span class="badge badge-blue">書類審査中</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">次のステップ</span></div>
+          <div style="padding:16px 20px;font-size:13px;color:var(--text-mid);line-height:1.8">
+            エントリーシートを最新の状態に保つと、企業へのマッチングがスムーズになります。<br>
+            <button class="btn btn-primary" style="margin-top:12px" onclick="showCandidatePage('c-entrysheet')">エントリーシートを確認・更新 →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- C: Entry Sheet -->
+      <div class="page-view" id="c-entrysheet">
+        <div class="page-title">エントリーシート</div>
+        <div class="page-sub">企業への提出資料になります。正確に入力してください</div>
+
+        <!-- Email Notification Status Banner -->
+        <div style="background:var(--green-pale);border:1px solid #6ee7b7;border-radius:var(--radius);padding:12px 18px;display:flex;align-items:center;gap:12px;margin-bottom:18px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" flex-shrink="0"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <div style="flex:1;font-size:12px;color:#065f46">
+            <strong>メール通知が有効です</strong>　登録アドレス <span style="font-family:'DM Mono',monospace;background:rgba(255,255,255,0.7);padding:1px 6px;border-radius:4px">tanaka.yoko@email.com</span> に通知が送られます
+          </div>
+          <button class="btn btn-sm" style="font-size:11px" onclick="showCandidatePage('c-notifications')">通知設定</button>
+        </div>
+
+        <div class="grid2">
+          <!-- Left: Current ES view -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">登録内容（現在）</span>
+              <button class="btn btn-sm btn-primary" onclick="toggleEsEdit(true)">編集</button>
+            </div>
+            <div id="es-view-mode" style="padding:4px 20px 16px">
+              <div class="es-section">
+                <div class="es-section-title">基本情報</div>
+                <div class="es-field"><div class="es-field-label">氏名</div><div class="es-field-value">田中 陽子</div></div>
+                <div class="es-field"><div class="es-field-label">生年月日</div><div class="es-field-value">1991年3月15日（34歳）</div></div>
+                <div class="es-field"><div class="es-field-label">連絡先</div><div class="es-field-value">090-1234-5678</div></div>
+                <div class="es-field"><div class="es-field-label">メール</div><div class="es-field-value">tanaka.yoko@email.com</div></div>
+              </div>
+              <div class="es-section">
+                <div class="es-section-title">希望条件</div>
+                <div class="es-field"><div class="es-field-label">希望職種</div><div class="es-field-value">マーケティング管理職</div></div>
+                <div class="es-field"><div class="es-field-label">希望年収</div><div class="es-field-value">550万円〜</div></div>
+                <div class="es-field"><div class="es-field-label">勤務地</div><div class="es-field-value">東京都・神奈川県</div></div>
+              </div>
+              <div class="es-section">
+                <div class="es-section-title">経歴・スキル</div>
+                <div class="es-field"><div class="es-field-label">最終学歴</div><div class="es-field-value">慶応義塾大学 経済学部卒</div></div>
+                <div class="es-field"><div class="es-field-label">直近の職場</div><div class="es-field-value">○○商事株式会社</div></div>
+                <div class="es-field"><div class="es-field-label">保有スキル</div><div class="es-field-value">マーケティング、EC、Google Analytics、Excel</div></div>
+              </div>
+              <div class="es-section">
+                <div class="es-section-title">保有資格</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:4px">
+                  <span style="background:var(--accent-pale);color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">日商簿記 2級</span>
+                  <span style="background:var(--accent-pale);color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">普通自動車免許（AT限定）</span>
+                  <span style="background:var(--accent-pale);color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">Google Analytics 認定資格</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Edit Form -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">ES入力・更新フォーム</span></div>
+            <div class="card-body" style="max-height:calc(100vh - 280px);overflow-y:auto">
+              <div class="form-group">
+                <label class="form-label">職務経歴・自己PR</label>
+                <textarea class="form-input form-textarea" style="min-height:100px" placeholder="強み・実績・経験などを入力">EC事業部でのマーケティング責任者として、年間売上30%増を達成。チームマネジメント経験5年。</textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">転職理由</label>
+                <textarea class="form-input form-textarea" style="min-height:70px" placeholder="転職を考えている理由">より大きな組織でのマーケティング戦略に携わりたいため。</textarea>
+              </div>
+
+              <!-- ★ 保有資格フィールド -->
+              <div class="form-group">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <label class="form-label" style="margin-bottom:0">保有資格 <span style="font-size:11px;color:var(--text-muted);font-weight:400">（最大10件）</span></label>
+                  <button type="button" class="btn btn-sm" id="add-qualification-btn" onclick="addQualification()" style="font-size:11px">＋ 追加</button>
+                </div>
+                <div id="qualification-list" style="display:flex;flex-direction:column;gap:8px">
+                  <div class="qual-row" style="display:flex;gap:6px;align-items:center">
+                    <input class="form-input" type="text" placeholder="例：日商簿記 2級" value="日商簿記 2級" style="flex:1">
+                    <button type="button" onclick="removeQualification(this)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:16px;line-height:1;flex-shrink:0" title="削除">×</button>
+                  </div>
+                  <div class="qual-row" style="display:flex;gap:6px;align-items:center">
+                    <input class="form-input" type="text" placeholder="例：普通自動車免許" value="普通自動車免許（AT限定）" style="flex:1">
+                    <button type="button" onclick="removeQualification(this)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:16px;line-height:1;flex-shrink:0" title="削除">×</button>
+                  </div>
+                  <div class="qual-row" style="display:flex;gap:6px;align-items:center">
+                    <input class="form-input" type="text" placeholder="例：TOEIC 800点" value="Google Analytics 認定資格" style="flex:1">
+                    <button type="button" onclick="removeQualification(this)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:16px;line-height:1;flex-shrink:0" title="削除">×</button>
+                  </div>
+                </div>
+                <div id="qual-limit-msg" style="display:none;margin-top:8px;font-size:11px;color:var(--red)">※ 資格の登録は最大10件までです</div>
+                <div id="qual-count-msg" style="margin-top:6px;font-size:11px;color:var(--text-muted)">3 / 10 件登録済み</div>
+              </div>
+
+              <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:8px;border-top:1px solid var(--border);margin-top:4px">
+                <button class="btn btn-primary" onclick="saveES()">保存して通知を送信</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C: Notification Settings -->
+      <div class="page-view" id="c-notifications">
+        <div class="page-title">メール通知設定</div>
+        <div class="page-sub">登録アドレスへの自動通知をカスタマイズできます</div>
+        <div class="card" style="max-width:560px">
+          <div class="card-header"><span class="card-title">通知メールアドレス</span></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">メールアドレス</label>
+              <div style="display:flex;gap:8px">
+                <input class="form-input" type="email" value="tanaka.yoko@email.com" style="flex:1">
+                <button class="btn btn-primary" onclick="alert('確認メールを送信しました。受信トレイをご確認ください。')">変更・確認</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="max-width:560px">
+          <div class="card-header"><span class="card-title">通知タイミングの設定</span></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:0">
+              <!-- notification rows -->
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)">
+                <div>
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">登録完了通知</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px">エントリーシート登録・更新が完了したとき</div>
+                </div>
+                <label class="toggle-switch" onclick="toggleSwitch(this)">
+                  <div class="toggle-track on"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)">
+                <div>
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">求人エントリー通知</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px">求人に応募・エントリーしたとき</div>
+                </div>
+                <label class="toggle-switch" onclick="toggleSwitch(this)">
+                  <div class="toggle-track on"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)">
+                <div>
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">応募完了通知</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px">企業への書類送付が完了したとき</div>
+                </div>
+                <label class="toggle-switch" onclick="toggleSwitch(this)">
+                  <div class="toggle-track on"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)">
+                <div>
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">求人先からのメッセージ</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px">企業から新しいメッセージが届いたとき</div>
+                </div>
+                <label class="toggle-switch" onclick="toggleSwitch(this)">
+                  <div class="toggle-track on"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0">
+                <div>
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">面接日程の確定通知</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px">面接日が決定・変更されたとき</div>
+                </div>
+                <label class="toggle-switch" onclick="toggleSwitch(this)">
+                  <div class="toggle-track on"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email preview samples -->
+        <div class="card" style="max-width:560px">
+          <div class="card-header"><span class="card-title">通知メールのサンプル</span></div>
+          <div class="card-body">
+            <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;font-size:12px">
+              <div style="background:var(--navy);padding:10px 16px;color:white;font-size:12px;font-weight:600">HR Bridge — 自動送信メール</div>
+              <div style="padding:16px;color:var(--text-mid);line-height:1.8">
+                <div style="margin-bottom:12px">田中 陽子 様</div>
+                <div style="color:var(--text-muted);font-size:11px;margin-bottom:8px">─────────────────────────</div>
+                <div>株式会社アルファ より <strong>面接のご案内</strong> が届きました。</div>
+                <div style="margin:12px 0;padding:12px;background:var(--gray-pale);border-left:3px solid var(--accent);border-radius:0 4px 4px 0">
+                  面接日時：2025年4月28日（月）14:00<br>
+                  場所：東京都渋谷区○○ 2F 会議室<br>
+                  担当：採用部　山田 太郎
+                </div>
+                <div>HR Bridgeのマイページから詳細をご確認ください。</div>
+                <div style="margin-top:16px">
+                  <span style="background:var(--accent);color:white;padding:7px 16px;border-radius:5px;font-size:12px">マイページで確認する</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C: Job Search -->
+      <div class="page-view" id="c-jobs">
+        <div class="page-title">求人を探す</div>
+        <div class="page-sub">あなたの希望条件にマッチした求人</div>
+
+        <!-- 検索バー（モバイル対応） -->
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+          <div style="display:flex;gap:8px">
+            <input class="form-input" style="flex:1" placeholder="🔍　職種・キーワードで検索" id="job-search-input">
+            <button class="btn btn-primary" style="flex-shrink:0">検索</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select class="form-input form-select" style="flex:1">
+              <option>すべての業界</option><option>製造</option><option>飲食</option><option>物流</option><option>建設</option><option>IT</option>
+            </select>
+            <select class="form-input form-select" style="flex:1">
+              <option>すべての雇用形態</option><option>正社員</option><option>契約社員</option><option>アルバイト</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">3件の求人が見つかりました</div>
+
+        <!-- モバイルファースト求人カードリスト -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Card 1: アルファ（PICK UP） -->
+          <div onclick="showJobDetail('alpha')" style="cursor:pointer;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #c7d2fe;transition:box-shadow 0.15s,transform 0.15s" onmouseenter="this.style.boxShadow='0 4px 16px rgba(79,70,229,0.15)';this.style.transform='translateY(-1px)'" onmouseleave="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+            <!-- ピックアップバナー -->
+            <div style="background:linear-gradient(90deg,#4f46e5,#818cf8);padding:6px 16px;display:flex;align-items:center;gap:7px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <span style="font-size:10px;font-weight:700;color:white;letter-spacing:0.1em">PICK UP</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.8)">ピックアップ求人</span>
+            </div>
+            <!-- カード本体 -->
+            <div style="padding:14px 16px">
+              <!-- 会社名・業種 -->
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">株式会社アルファ ／ 製造業</div>
+              <!-- 職種タイトル -->
+              <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.3">営業部長</div>
+              <!-- 給与・最寄り駅 メイン情報 -->
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:#dbeafe;flex-shrink:0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </span>
+                  <span style="font-size:14px;font-weight:700;color:#1d4ed8">年収 600〜800万円</span>
+                  <span class="badge badge-blue" style="font-size:10px;padding:2px 7px">正社員</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:var(--gray-light);flex-shrink:0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                  </span>
+                  <span style="font-size:13px;color:var(--text-mid)">渋谷駅 徒歩5分（東京都渋谷区）</span>
+                </div>
+              </div>
+              <!-- タグ -->
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">営業経験10年以上</span>
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">マネジメント歓迎</span>
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">フレックスあり</span>
+              </div>
+              <!-- フッター -->
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:11px;color:var(--text-muted)">掲載 2025/04/01</span>
+                  <span class="badge badge-green" style="font-size:10px">マッチ度 92%</span>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();showJobDetail('alpha')" style="font-size:12px;padding:6px 14px">詳細・応募 →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: ガンマフーズ（おすすめ） -->
+          <div onclick="showJobDetail('gamma')" style="cursor:pointer;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #fde68a;transition:box-shadow 0.15s,transform 0.15s" onmouseenter="this.style.boxShadow='0 4px 16px rgba(217,119,6,0.15)';this.style.transform='translateY(-1px)'" onmouseleave="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+            <!-- おすすめバナー -->
+            <div style="background:linear-gradient(90deg,#d97706,#fbbf24);padding:6px 16px;display:flex;align-items:center;gap:7px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <span style="font-size:10px;font-weight:700;color:white;letter-spacing:0.1em">おすすめ</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.85)">注目の求人</span>
+            </div>
+            <div style="padding:14px 16px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">ガンマフーズ ／ 飲食・流通</div>
+              <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.3">マーケティングマネージャー</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:#dbeafe;flex-shrink:0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </span>
+                  <span style="font-size:14px;font-weight:700;color:#1d4ed8">年収 500〜650万円</span>
+                  <span class="badge badge-blue" style="font-size:10px;padding:2px 7px">正社員</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:var(--gray-light);flex-shrink:0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                  </span>
+                  <span style="font-size:13px;color:var(--text-mid)">渋谷駅 徒歩3分（東京都渋谷区）</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">EC経験歓迎</span>
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">デジタルマーケ</span>
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">フレックスあり</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:11px;color:var(--text-muted)">掲載 2025/04/05</span>
+                  <span class="badge badge-blue" style="font-size:10px">マッチ度 85%</span>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();showJobDetail('gamma')" style="font-size:12px;padding:6px 14px">詳細・応募 →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: イプシロン建設（スタンダード） -->
+          <div onclick="showJobDetail('epsilon')" style="cursor:pointer;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid var(--border);transition:box-shadow 0.15s,transform 0.15s" onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseleave="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+            <div style="padding:14px 16px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">イプシロン建設 ／ 建設</div>
+              <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.3">現場補助スタッフ</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:#dbeafe;flex-shrink:0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </span>
+                  <span style="font-size:14px;font-weight:700;color:#1d4ed8">時給 1,200〜1,500円</span>
+                  <span style="font-size:10px;background:var(--amber-pale);color:#92400e;padding:2px 7px;border-radius:20px;font-weight:600">アルバイト・短期</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:var(--gray-light);flex-shrink:0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                  </span>
+                  <span style="font-size:13px;color:var(--text-mid)">新宿駅 集合（東京都新宿区）</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">未経験歓迎</span>
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">週3日〜</span>
+                <span style="font-size:11px;background:var(--gray-light);color:var(--text-muted);padding:3px 9px;border-radius:20px">交通費支給</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:11px;color:var(--text-muted)">掲載 2025/04/10</span>
+                  <span class="badge badge-amber" style="font-size:10px">マッチ度 71%</span>
+                </div>
+                <button class="btn btn-sm" onclick="event.stopPropagation();showJobDetail('epsilon')" style="font-size:12px;padding:6px 14px">詳細・応募 →</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- C: Job Detail -->
+      <div class="page-view" id="c-job-detail">
+        <!-- Back button -->
+        <div style="margin-bottom:16px">
+          <button class="btn btn-sm" onclick="showCandidatePage('c-jobs')" style="display:inline-flex;align-items:center;gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            求人一覧に戻る
+          </button>
+        </div>
+
+        <!-- Header image area -->
+        <div id="jd-header" style="border-radius:var(--radius);overflow:hidden;margin-bottom:20px;box-shadow:var(--shadow-md)">
+          <div id="jd-img-main" style="height:220px;position:relative">
+            <!-- filled by JS -->
+          </div>
+          <!-- Sub image strip -->
+          <div id="jd-img-strip" style="display:flex;gap:3px;height:72px;background:#000"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start">
+          <!-- Left: Detail content -->
+          <div>
+            <!-- Title card -->
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-body">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                  <div>
+                    <div style="font-size:22px;font-weight:700;color:var(--text);line-height:1.3" id="jd-title">営業部長</div>
+                    <div style="font-size:14px;color:var(--text-muted);margin-top:4px" id="jd-company">株式会社アルファ ／ 製造業</div>
+                  </div>
+                  <span class="badge badge-green" id="jd-match" style="font-size:13px;padding:5px 12px">マッチ度 92%</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px" id="jd-tags"></div>
+              </div>
+            </div>
+
+            <!-- Inner tabs -->
+            <div class="inner-tabs" style="margin-bottom:0">
+              <button class="inner-tab active" onclick="switchJdTab('jd-tab-detail',this)">仕事内容</button>
+              <button class="inner-tab" onclick="switchJdTab('jd-tab-conditions',this)">勤務条件</button>
+              <button class="inner-tab" onclick="switchJdTab('jd-tab-company',this)">会社情報</button>
+            </div>
+
+            <!-- Tab: Job detail -->
+            <div class="card" id="jd-tab-detail" style="border-radius:0 0 var(--radius) var(--radius);margin-bottom:16px">
+              <div class="card-body" id="jd-detail-body">
+                <!-- filled by JS -->
+              </div>
+            </div>
+
+            <!-- Tab: Conditions -->
+            <div class="card" id="jd-tab-conditions" style="display:none;border-radius:0 0 var(--radius) var(--radius);margin-bottom:16px">
+              <div class="card-body" id="jd-cond-body"></div>
+            </div>
+
+            <!-- Tab: Company -->
+            <div class="card" id="jd-tab-company" style="display:none;border-radius:0 0 var(--radius) var(--radius);margin-bottom:16px">
+              <div class="card-body" id="jd-company-body"></div>
+            </div>
+          </div>
+
+          <!-- Right: Apply panel (sticky) -->
+          <div style="position:sticky;top:72px">
+            <div class="card" style="border:2px solid var(--accent)">
+              <div class="card-body">
+                <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px" id="jd-apply-title">営業部長</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px" id="jd-apply-company">株式会社アルファ</div>
+
+                <div style="background:var(--gray-pale);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">あなたのES（エントリーシート）</div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="badge badge-green">✓ 登録済み</span>
+                    <span style="font-size:12px;color:var(--text-muted)">田中 陽子</span>
+                  </div>
+                  <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">応募するとESが自動送付されます</div>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px" id="jd-apply-btn" onclick="applyFromDetail()">
+                  この求人に応募する
+                </button>
+                <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="showCandidatePage('c-jobs')">
+                  一覧に戻る
+                </button>
+
+                <div id="jd-applied-msg" style="display:none;margin-top:12px;padding:10px 12px;background:var(--green-pale);border-radius:var(--radius-sm);font-size:12px;color:#065f46;text-align:center">
+                  ✓ 応募済みです。メールで確認してください。
+                </div>
+              </div>
+            </div>
+
+            <!-- Similar jobs -->
+            <div class="card" style="margin-top:16px">
+              <div class="card-header"><span class="card-title">関連する求人</span></div>
+              <div style="padding:8px 16px 12px">
+                <div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="showJobDetail('gamma')">
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">マーケティングマネージャー</div>
+                  <div style="font-size:11px;color:var(--text-muted)">ガンマフーズ ／ 正社員</div>
+                </div>
+                <div style="padding:10px 0;cursor:pointer" onclick="showJobDetail('epsilon')">
+                  <div style="font-size:13px;font-weight:500;color:var(--text)">現場補助スタッフ</div>
+                  <div style="font-size:11px;color:var(--text-muted)">イプシロン建設 ／ アルバイト</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C: Applications -->
+      <div class="page-view" id="c-applications">
+        <div class="page-title">応募履歴</div>
+        <div class="page-sub">応募した求人の進捗を確認できます</div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>企業名</th><th>職種</th><th>応募日</th><th>面接日</th><th>状況</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>株式会社アルファ</strong></td><td>営業部長</td><td>04/01</td>
+                <td style="font-family:'DM Mono',monospace;font-size:12px">04/03 10:00</td>
+                <td><span class="badge badge-green">面接済み ✓</span></td>
+              </tr>
+              <tr>
+                <td><strong>ベータ工業</strong></td><td>工場マネージャー</td><td>04/10</td>
+                <td style="color:var(--text-muted);font-size:12px">調整中</td>
+                <td><span class="badge badge-blue">書類審査中</span></td>
+              </tr>
+              <tr>
+                <td><strong>ガンマフーズ</strong></td><td>エリアSV</td><td>04/15</td>
+                <td style="color:var(--text-muted);font-size:12px">—</td>
+                <td><span class="badge badge-blue">書類審査中</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Portal switching ───────────────────────────────────
+function switchPortal(id) {
+  document.querySelectorAll('.portal').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.switcher-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('portal-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Admin pages ────────────────────────────────────────
+function showAdminPage(id) {
+  document.querySelectorAll('#portal-admin .page-view').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#portal-admin .nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Employer pages ─────────────────────────────────────
+function showEmployerPage(id) {
+  document.querySelectorAll('#portal-employer .page-view').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#portal-employer .nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Candidate pages ─────────────────────────────────────
+function showCandidatePage(id) {
+  document.querySelectorAll('#portal-candidate .page-view').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#portal-candidate .nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Employment type selector ───────────────────────────
+let currentEmpType = 'seiki';
+
+const empConfig = {
+  seiki:   { label:'正社員',   price:'¥5,000/件', color:'var(--accent)',  colorPale:'var(--accent-pale)',  badgeClass:'badge-blue'  },
+  keiyaku: { label:'契約社員', price:'¥5,000/件', color:'var(--accent)',  colorPale:'var(--accent-pale)',  badgeClass:'badge-navy'  },
+  arbeit:  { label:'アルバイト',price:'¥2,000/件', color:'var(--amber)',   colorPale:'var(--amber-pale)',   badgeClass:'badge-amber' }
+};
+
+function selectEmpType(type) {
+  currentEmpType = type;
+  ['seiki','keiyaku','arbeit'].forEach(t => {
+    const btn = document.getElementById('emp-btn-' + t);
+    const cfg = empConfig[t];
+    const isSelected = t === type;
+    btn.style.border = isSelected ? '2px solid ' + cfg.color : '2px solid var(--border)';
+    btn.style.background = isSelected ? cfg.colorPale : 'var(--white)';
+    const iconBox = btn.querySelector('div:first-of-type');
+    iconBox.style.background = isSelected ? cfg.color : 'var(--gray-light)';
+    const svg = iconBox.querySelector('svg');
+    svg.setAttribute('stroke', isSelected ? 'white' : 'var(--gray)');
+    const titleEl = btn.querySelectorAll('div')[1].querySelector('div:first-child');
+    titleEl.style.color = isSelected ? cfg.color : 'var(--text)';
+  });
+
+  // Show/hide option panels
+  document.getElementById('keiyaku-options').style.display = type === 'keiyaku' ? 'block' : 'none';
+  document.getElementById('arbeit-options').style.display  = type === 'arbeit'  ? 'block' : 'none';
+
+  // Show/hide wage fields
+  document.getElementById('wage-fields-seiki').style.display  = type === 'arbeit' ? 'none' : 'block';
+  document.getElementById('wage-fields-arbeit').style.display = type === 'arbeit' ? 'block' : 'none';
+
+  // Update margin info box
+  const cfg = empConfig[type];
+  document.getElementById('margin-label').textContent = cfg.label;
+  document.getElementById('margin-price').textContent = cfg.price;
+  const box = document.getElementById('margin-info-box');
+  if (type === 'arbeit') {
+    box.style.background = 'var(--amber-pale)';
+    box.style.borderColor = '#fcd34d';
+    box.querySelector('svg').setAttribute('stroke','#92400e');
+    box.querySelector('div').style.color = '#92400e';
+  } else {
+    box.style.background = 'var(--accent-pale)';
+    box.style.borderColor = '#93c5fd';
+    box.querySelector('svg').setAttribute('stroke','#1d4ed8');
+    box.querySelector('div').style.color = '#1d4ed8';
+  }
+
+  // Update preview badge
+  updatePreviewBadge();
+  updatePreviewTags();
+}
+
+// ─── Arbeit type selector ────────────────────────────────
+function selectArbeit(type) {
+  const isShort = type === 'tanki';
+  const tanki = document.getElementById('arbeit-tanki-btn');
+  const choki = document.getElementById('arbeit-choki-btn');
+  tanki.style.border = isShort ? '2px solid var(--amber)' : '2px solid var(--border)';
+  choki.style.border = !isShort ? '2px solid var(--amber)' : '2px solid var(--border)';
+  tanki.querySelector('div').style.background = isShort ? 'var(--amber)' : 'var(--gray-mid)';
+  choki.querySelector('div').style.background = !isShort ? 'var(--amber)' : 'var(--gray-mid)';
+  tanki.querySelector('.arbeit-dot-tanki, div').style.color = isShort ? 'var(--amber)' : 'var(--text)';
+  document.getElementById('arbeit-dot-tanki').style.background = isShort ? 'var(--amber)' : 'var(--gray-mid)';
+  document.getElementById('arbeit-dot-choki').style.background = !isShort ? 'var(--amber)' : 'var(--gray-mid)';
+  updatePreviewTags();
+}
+
+// ─── Photo upload ─────────────────────────────────────────
+const uploadedPhotos = [null, null, null];
+
+function triggerUpload(idx) {
+  document.getElementById('file-input-' + idx).click();
+}
+
+function handlePhotoUpload(idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const url = e.target.result;
+    uploadedPhotos[idx] = url;
+
+    // Update slot thumbnail
+    const slot = document.getElementById('slot-' + idx);
+    slot.style.border = '2px solid var(--accent)';
+    slot.style.background = 'none';
+    slot.innerHTML = `
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:calc(var(--radius) - 2px)">
+      <div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.55);border-radius:4px;padding:2px 6px;font-size:10px;color:white;cursor:pointer" onclick="removePhoto(${idx},event)">削除</div>
+      <div style="position:absolute;bottom:4px;left:6px;background:rgba(0,0,0,0.5);border-radius:4px;padding:2px 6px;font-size:10px;color:white">${idx === 0 ? 'メイン' : '写真'+(idx+1)}</div>
+    `;
+
+    // Update header preview
+    renderHeaderPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto(idx, e) {
+  e.stopPropagation();
+  uploadedPhotos[idx] = null;
+  const slot = document.getElementById('slot-' + idx);
+  const labels = ['写真1（メイン）','写真2','写真3'];
+  slot.style.border = '2px dashed var(--border)';
+  slot.style.background = 'var(--gray-pale)';
+  slot.innerHTML = `
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-mid)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    <span style="font-size:11px;color:var(--text-muted);margin-top:6px">${labels[idx]}</span>
+  `;
+  slot.onclick = () => triggerUpload(idx);
+  renderHeaderPreview();
+}
+
+function renderHeaderPreview() {
+  const hasAny = uploadedPhotos.some(p => p !== null);
+  const wrap = document.getElementById('header-preview-wrap');
+  wrap.style.display = hasAny ? 'block' : 'none';
+  if (!hasAny) return;
+
+  // Main image
+  const main = uploadedPhotos[0] || uploadedPhotos[1] || uploadedPhotos[2];
+  document.getElementById('header-main-img').src = main;
+
+  // Sub images (the other 2)
+  const subs = uploadedPhotos.filter((p,i) => p !== null && p !== main);
+  const sub1 = document.getElementById('header-sub-1');
+  const sub2 = document.getElementById('header-sub-2');
+  if (subs[0]) { sub1.src = subs[0]; sub1.style.display = 'block'; } else { sub1.style.display = 'none'; }
+  if (subs[1]) { sub2.src = subs[1]; sub2.style.display = 'block'; } else { sub2.style.display = 'none'; }
+
+  updatePreviewBadge();
+  updatePreviewTags();
+}
+
+function updatePreviewBadge() {
+  const cfg = empConfig[currentEmpType];
+  const badge = document.getElementById('preview-emp-badge');
+  badge.innerHTML = `<span class="badge ${cfg.badgeClass}">${cfg.label}</span>`;
+}
+
+function updatePreviewTitle(val) {
+  document.getElementById('preview-title').textContent = val || '職種名がここに表示されます';
+}
+
+function updatePreviewTags() {
+  const loc = (document.getElementById('job-location') || {}).value || '';
+  const tags = [];
+  const cfg = empConfig[currentEmpType];
+
+  if (currentEmpType === 'arbeit') {
+    const min = (document.getElementById('wage-min') || {}).value;
+    const max = (document.getElementById('wage-max') || {}).value;
+    if (min || max) tags.push((min ? '時給¥'+Number(min).toLocaleString() : '') + (max ? '〜¥'+Number(max).toLocaleString() : ''));
+    const isShort = document.getElementById('arbeit-dot-tanki').style.background.includes('amber') || document.getElementById('arbeit-dot-tanki').style.background === 'var(--amber)';
+    tags.push(isShort ? '短期' : '長期');
+  } else {
+    const min = (document.getElementById('salary-min') || {}).value;
+    const max = (document.getElementById('salary-max') || {}).value;
+    if (min || max) tags.push((min ? min+'万' : '') + (max ? '〜'+max+'万' : ''));
+  }
+  if (loc) tags.push(loc);
+
+  const container = document.getElementById('preview-tags');
+  container.innerHTML = tags.map(t => `<span class="job-tag">${t}</span>`).join('');
+}
+
+// ─── Interview done（プラン対応） ─────────────────────────
+let gammaCount = 12;
+let gammaAmount = 20000; // SILVERなので月額のみ
+
+// 企業プランマスタ
+const companyPlans = {
+  'ガンマフーズ': 'silver',
+  '株式会社アルファ': 'gold',
+  'ベータ工業': 'std',
+  'デルタ物流': 'std',
+  'イプシロン建設': 'std-arb'
+};
+
+const planMargin = { gold: 0, silver: 0, std: 5000, 'std-arb': 2000 };
+
+function markInterviewDone(n, company, plan) {
+  const statusEl = document.getElementById('status-' + n);
+  const btnEl = document.getElementById('btn-done-' + n);
+  const marginEl = document.getElementById('margin-' + n);
+  statusEl.innerHTML = '<span class="badge badge-green">面接済み ✓</span>';
+  btnEl.textContent = '記録済み';
+  btnEl.disabled = true;
+
+  const p = plan || companyPlans[company] || 'std';
+  const margin = planMargin[p] || 0;
+  const isExempt = margin === 0;
+
+  // マージン列の表示
+  if (marginEl) {
+    marginEl.innerHTML = isExempt
+      ? '<span class="badge badge-green" style="font-size:11px">¥0 免除</span>'
+      : `<span style="font-weight:600;color:var(--text)">¥${margin.toLocaleString()}</span>`;
+  }
+
+  // ガンマフーズ（SILVER）はカウントのみ、金額変わらず
+  if (company === 'ガンマフーズ') {
+    gammaCount++;
+    document.getElementById('gamma-count').textContent = gammaCount + '名';
+    // 金額は月額固定のまま変化なし
+  }
+
+  // 通知バナー
+  const notice = document.getElementById('auto-billing-notice');
+  const noticeHeader = document.getElementById('billing-notice-header');
+  const noticeTitle = document.getElementById('billing-notice-title');
+  const noticeBody = document.getElementById('billing-notice-body');
+  notice.style.display = 'block';
+
+  if (isExempt) {
+    notice.style.borderColor = 'var(--green)';
+    noticeHeader.style.background = 'var(--green-pale)';
+    noticeTitle.style.color = 'var(--green)';
+    noticeTitle.textContent = `✓ 面接済み登録完了 — ${company}（${p.toUpperCase()}プラン）`;
+    noticeBody.innerHTML = `<span style="color:var(--green);font-weight:600">面接マージンは発生しません。</span>月額プランのため追加請求なしで処理されました。`;
+  } else {
+    notice.style.borderColor = 'var(--accent)';
+    noticeHeader.style.background = 'var(--accent-pale)';
+    noticeTitle.style.color = 'var(--accent)';
+    noticeTitle.textContent = `✓ 面接済み登録完了 — ${company}（スタンダード）`;
+    noticeBody.innerHTML = `面接マージン <strong>¥${margin.toLocaleString()}</strong> が請求書に自動加算されました。`;
+  }
+}
+
+// ─── Invoice preview（プラン対応） ───────────────────────
+function showInvoice(company, plan, count) {
+  document.getElementById('invoice-empty').style.display = 'none';
+  document.getElementById('invoice-content').style.display = 'block';
+
+  const idx = ['アルファ','ベータ工業','ガンマフーズ','デルタ物流','イプシロン建設'].indexOf(company) + 1;
+  document.getElementById('inv-no').textContent = 'INV-2025-04-00' + idx;
+  document.getElementById('inv-company').textContent = company;
+
+  // プランバッジ
+  const planBadgeEl = document.getElementById('inv-plan-badge');
+  const planLabels = {
+    gold:    `<span style="background:linear-gradient(90deg,#d97706,#fbbf24);color:white;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700">GOLDプラン</span>`,
+    silver:  `<span style="background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700">SILVERプラン</span>`,
+    std:     `<span style="background:var(--gray-light);color:var(--gray);padding:2px 10px;border-radius:4px;font-size:11px;font-weight:600">スタンダード</span>`,
+    'std-arb':`<span style="background:var(--gray-light);color:var(--gray);padding:2px 10px;border-radius:4px;font-size:11px;font-weight:600">スタンダード（アルバイト）</span>`
+  };
+  planBadgeEl.innerHTML = planLabels[plan] || '';
+
+  // 請求行の生成
+  const rowsEl = document.getElementById('inv-rows');
+  let subtotal = 0;
+  let rows = '';
+
+  if (plan === 'gold') {
+    rows = `
+      <tr>
+        <td>掲載プラン（ゴールド）<br><span style="font-size:11px;color:var(--text-muted)">2025年4月分 / 面接マージン免除・上位表示</span></td>
+        <td style="text-align:right">1ヶ月</td><td style="text-align:right">¥30,000</td><td style="text-align:right;font-weight:600">¥30,000</td>
+      </tr>
+      <tr>
+        <td>面接マージン（${count}名）<br><span style="font-size:11px;color:var(--green)">GOLDプランにより全額免除</span></td>
+        <td style="text-align:right">${count}名</td><td style="text-align:right">¥0</td><td style="text-align:right;font-weight:600;color:var(--green)">¥0</td>
+      </tr>`;
+    subtotal = 30000;
+  } else if (plan === 'silver') {
+    rows = `
+      <tr>
+        <td>掲載プラン（シルバー）<br><span style="font-size:11px;color:var(--text-muted)">2025年4月分 / 面接マージン免除・無制限</span></td>
+        <td style="text-align:right">1ヶ月</td><td style="text-align:right">¥20,000</td><td style="text-align:right;font-weight:600">¥20,000</td>
+      </tr>
+      <tr>
+        <td>面接マージン（${count}名）<br><span style="font-size:11px;color:var(--green)">SILVERプランにより全額免除</span></td>
+        <td style="text-align:right">${count}名</td><td style="text-align:right">¥0</td><td style="text-align:right;font-weight:600;color:var(--green)">¥0</td>
+      </tr>`;
+    subtotal = 20000;
+  } else if (plan === 'std') {
+    const unit = 5000;
+    subtotal = count * unit;
+    rows = `
+      <tr>
+        <td>人材紹介 面接マージン<br><span style="font-size:11px;color:var(--text-muted)">2025年4月 面接実施分</span></td>
+        <td style="text-align:right">${count}名</td><td style="text-align:right">¥${unit.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:600">¥${subtotal.toLocaleString()}</td>
+      </tr>`;
+  } else {
+    const unit = 2000;
+    subtotal = count * unit;
+    rows = `
+      <tr>
+        <td>人材紹介 面接マージン（アルバイト）<br><span style="font-size:11px;color:var(--text-muted)">2025年4月 面接実施分</span></td>
+        <td style="text-align:right">${count}名</td><td style="text-align:right">¥${unit.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:600">¥${subtotal.toLocaleString()}</td>
+      </tr>`;
+  }
+
+  rowsEl.innerHTML = rows;
+  const tax = Math.round(subtotal * 0.1);
+  const total = subtotal + tax;
+  document.getElementById('inv-tax').textContent = '¥' + tax.toLocaleString();
+  document.getElementById('inv-total').textContent = '¥' + total.toLocaleString();
+}
+
+// ─── Inner tabs (generic) ────────────────────────────────
+document.querySelectorAll('.inner-tabs').forEach(tabGroup => {
+  tabGroup.querySelectorAll('.inner-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabGroup.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+});
+
+// ─── Qualification list (max 10) ─────────────────────────
+function addQualification() {
+  const list = document.getElementById('qualification-list');
+  const rows = list.querySelectorAll('.qual-row');
+  if (rows.length >= 10) {
+    document.getElementById('qual-limit-msg').style.display = 'block';
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = 'qual-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center';
+  row.innerHTML = `
+    <input class="form-input" type="text" placeholder="例：TOEIC 800点" style="flex:1" oninput="updateQualCount()">
+    <button type="button" onclick="removeQualification(this)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:16px;line-height:1;flex-shrink:0" title="削除">×</button>
+  `;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+  updateQualCount();
+}
+
+function removeQualification(btn) {
+  btn.closest('.qual-row').remove();
+  document.getElementById('qual-limit-msg').style.display = 'none';
+  updateQualCount();
+}
+
+function updateQualCount() {
+  const count = document.querySelectorAll('#qualification-list .qual-row').length;
+  document.getElementById('qual-count-msg').textContent = count + ' / 10 件登録済み';
+  document.getElementById('add-qualification-btn').disabled = count >= 10;
+}
+
+function saveES() {
+  const quals = [...document.querySelectorAll('#qualification-list .qual-row input')]
+    .map(i => i.value.trim()).filter(v => v);
+  // Update the view-mode badges
+  const section = document.querySelector('#es-view-mode .es-section:last-child div:last-child');
+  if (section) {
+    section.innerHTML = quals.length
+      ? quals.map(q => `<span style="background:var(--accent-pale);color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">${q}</span>`).join('')
+      : '<span style="color:var(--text-muted);font-size:12px">未登録</span>';
+  }
+  // Simulate email notification
+  showToast('保存しました。確認メールを tanaka.yoko@email.com に送信しました。');
+}
+
+// ─── Toast notification ───────────────────────────────────
+function showToast(msg) {
+  let toast = document.getElementById('global-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'global-toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1b2d;color:white;padding:12px 22px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.3s;white-space:nowrap';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
+// ─── Toggle switch ────────────────────────────────────────
+function toggleSwitch(label) {
+  const track = label.querySelector('.toggle-track');
+  track.classList.toggle('on');
+}
+
+// ─── Message data per applicant ───────────────────────────
+const messageData = {
+  0: [
+    { from:'employer', text:'田中様、書類を拝見しました。ぜひ一度お話できればと思います。', time:'04/03 09:15' },
+    { from:'candidate', text:'ありがとうございます。ぜひよろしくお願いいたします。', time:'04/03 10:42' },
+    { from:'employer', text:'では4月10日（木）14時はいかがでしょうか？場所は弊社の渋谷オフィスです。', time:'04/03 11:00' },
+    { from:'candidate', text:'承知いたしました。当日お伺いします。', time:'04/03 11:28' },
+    { from:'employer', text:'面接でお会いできることを楽しみにしております。', time:'04/03 11:35' },
+  ],
+  1: [
+    { from:'employer', text:'高橋様、ご応募いただきありがとうございます。', time:'04/05 10:00' },
+    { from:'candidate', text:'こちらこそよろしくお願いいたします。', time:'04/05 12:30' },
+  ],
+  2: [],
+  3: [],
+};
+
+let currentApplicantIdx = null;
+
+function selectApplicant(name, status, idx) {
+  currentApplicantIdx = idx;
+  // highlight row
+  document.querySelectorAll('.applicant-row').forEach((r,i) => {
+    r.style.background = i === idx ? 'var(--accent-pale)' : '';
+  });
+  // Show panel
+  document.getElementById('msg-panel-empty').style.display = 'none';
+  const body = document.getElementById('msg-panel-body');
+  body.style.display = 'flex';
+  // Set header
+  document.getElementById('msg-avatar').textContent = name[0];
+  document.getElementById('msg-name').textContent = name;
+  const statusLabels = { done:'面接済み', review:'書類審査中', interview:'面接予定' };
+  document.getElementById('msg-status').textContent = statusLabels[status] || status;
+  // Render history
+  renderMessages(idx);
+}
+
+function renderMessages(idx) {
+  const history = document.getElementById('msg-history');
+  const msgs = messageData[idx] || [];
+  if (msgs.length === 0) {
+    history.innerHTML = '<div style="text-align:center;padding:24px;font-size:12px;color:var(--text-muted)">まだメッセージはありません</div>';
+    return;
+  }
+  history.innerHTML = msgs.map(m => `
+    <div class="msg-row msg-row-${m.from}">
+      ${m.from === 'candidate' ? `<div style="font-size:10px;color:var(--text-muted);padding:0 4px;margin-bottom:2px">求職者</div>` : ''}
+      <div class="msg-bubble msg-bubble-${m.from}">${m.text}</div>
+      <div class="msg-time">${m.time}</div>
+    </div>
+  `).join('');
+  history.scrollTop = history.scrollHeight;
+}
+
+function sendEmployerMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text || currentApplicantIdx === null) return;
+  const now = new Date();
+  const time = `${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+  messageData[currentApplicantIdx].push({ from:'employer', text, time });
+  renderMessages(currentApplicantIdx);
+  input.value = '';
+  showToast('メッセージを送信しました。求職者にメール通知を送りました。');
+}
+
+// ─── ES data（個人情報非公開版） ──────────────────────────
+const esDataPublic = [
+  {
+    name:'田中 陽子', age:'34歳', job:'マーケティング管理職', exp:'経験10年',
+    school:'慶応義塾大学 経済学部卒', recent:'○○商事株式会社',
+    skills:'マーケティング、EC、Google Analytics、Excel',
+    quals:['日商簿記 2級','普通自動車免許（AT限定）','Google Analytics 認定資格'],
+    pr:'EC事業部でのマーケティング責任者として、年間売上30%増を達成。チームマネジメント経験5年。',
+    salary:'550万円〜', location:'東京都・神奈川県'
+  },
+  {
+    name:'高橋 誠', age:'38歳', job:'営業マネージャー希望', exp:'経験12年',
+    school:'早稲田大学 商学部卒', recent:'株式会社△△',
+    skills:'法人営業、マネジメント、SFA、英語',
+    quals:['普通自動車免許','TOEIC 780点'],
+    pr:'大手製造業への法人営業で年間目標120%達成を継続。部門の新規開拓プロジェクトをリード。',
+    salary:'600万円〜', location:'東京都'
+  },
+  {
+    name:'佐藤 美咲', age:'41歳', job:'営業部長希望', exp:'経験15年',
+    school:'上智大学 経済学部卒', recent:'×× コンサルティング',
+    skills:'法人営業、戦略立案、マネジメント、Excel、PowerPoint',
+    quals:['中小企業診断士','普通自動車免許'],
+    pr:'コンサルティング会社にて営業統括として15社以上の事業改善に従事。',
+    salary:'700万円〜', location:'東京都'
+  },
+  {
+    name:'山本 大輔', age:'28歳', job:'営業希望', exp:'経験3年',
+    school:'明治大学 経営学部卒', recent:'〇〇不動産',
+    skills:'不動産営業、提案資料作成、Excel',
+    quals:['宅地建物取引士','普通自動車免許'],
+    pr:'不動産営業で3年間、新規顧客獲得に注力。エリア内トップセールスを2年連続達成。',
+    salary:'400万円〜', location:'東京都・神奈川県'
+  }
+];
+
+function openES(idx) {
+  const d = esDataPublic[idx];
+  if (!d) return;
+  document.getElementById('es-panel-name').textContent = d.name + ' — エントリーシート';
+  document.getElementById('es-panel-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;font-size:12px">
+      <div style="padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);display:inline-block;width:80px">年齢</span>${d.age}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);display:inline-block;width:80px">経験</span>${d.exp}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);display:inline-block;width:80px">希望職種</span>${d.job}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);display:inline-block;width:80px">希望年収</span>${d.salary}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);grid-column:1/-1"><span style="color:var(--text-muted);display:inline-block;width:80px">最終学歴</span>${d.school}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);grid-column:1/-1"><span style="color:var(--text-muted);display:inline-block;width:80px">直近の職場</span>${d.recent}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);grid-column:1/-1"><span style="color:var(--text-muted);display:inline-block;width:80px">保有スキル</span>${d.skills}</div>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);grid-column:1/-1">
+        <span style="color:var(--text-muted);display:inline-block;width:80px">保有資格</span>
+        <div style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-top:4px">${d.quals.map(q=>`<span style="background:var(--accent-pale);color:#1d4ed8;padding:2px 8px;border-radius:20px;font-size:11px">${q}</span>`).join('')}</div>
+      </div>
+      <div style="padding:8px 0;grid-column:1/-1"><span style="color:var(--text-muted);display:block;margin-bottom:4px">自己PR</span><div style="line-height:1.7;color:var(--text-mid)">${d.pr}</div></div>
+    </div>
+    <div style="margin-top:10px;padding:8px 10px;background:#fff7ed;border-radius:var(--radius-sm);font-size:11px;color:#92400e;display:flex;align-items:center;gap:6px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      メールアドレス・電話番号は非公開です。連絡はシステム内メッセージをご利用ください。
+    </div>
+  `;
+  document.getElementById('es-panel').style.display = 'block';
+}
+
+// ─── Interview status selection ───────────────────────────
+function setInterviewStatus(cardIdx, result) {
+  const names = ['田中 陽子','高橋 誠','佐藤 美咲','山本 大輔'];
+  const name = names[cardIdx];
+  const card = document.getElementById('ecard-' + cardIdx);
+  const selectArea = document.getElementById('status-select-' + cardIdx);
+
+  if (result === 'done') {
+    // 面接あり → 緑バナーに差し替え
+    selectArea.style.background = 'var(--green-pale)';
+    selectArea.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+        <span style="font-size:12px;color:#065f46;font-weight:600">面接あり — 登録済み（課金対象）</span>
+      </div>`;
+    card.style.border = '1px solid var(--border)';
+    showToast(`${name}：面接ありで登録しました。請求書に反映されます。`);
+  } else {
+    // 面接なし → 不採用通知 → 確認ダイアログ代わりにカード更新
+    selectArea.style.background = 'var(--gray-pale)';
+    selectArea.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:600">面接なし — 不採用通知を送信中...</span>
+      </div>
+      <div style="padding:10px 12px;background:white;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-mid)">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em">自動送信された不採用通知メール</div>
+        <div style="margin-bottom:4px"><strong>${name}</strong> 様</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-bottom:8px">────────────────────</div>
+        <div style="line-height:1.8">
+          この度は弊社求人にご応募いただき、誠にありがとうございました。<br>
+          慎重に選考を行いました結果、今回は採用を見送らせていただくこととなりました。<br>
+          ご応募いただきましたことに改めて感謝申し上げます。
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text-muted)">※ このメールは HR Bridge システムより自動送信されました</div>
+      </div>`;
+    card.style.border = '1px solid var(--border)';
+    showToast(`${name}：不採用通知を自動送信しました（課金なし）`);
+  }
+}
+
+// ─── Applicant message panel ──────────────────────────────
+function filterApplicants(type, tabEl) {
+  document.querySelectorAll('#e-applicants .inner-tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+  if (type !== 'all') showToast('フィルター: ' + tabEl.textContent + ' で絞り込み中');
+}
+
+// ─── Job detail data & functions ─────────────────────────
+const jobDetailData = {
+  alpha: {
+    title: '営業部長', company: '株式会社アルファ ／ 製造業',
+    match: 'マッチ度 92%', matchClass: 'badge-green',
+    empType: '正社員', empClass: 'badge-blue', marginPrice: '¥5,000/件',
+    headerGradient: 'linear-gradient(135deg,#1e3a5f 0%,#2d6a9f 60%,#1a8a5a 100%)',
+    subColors: ['#2d6a9f','#1e3a5f','#1a8a5a'],
+    tags: ['年収600〜800万','正社員','東京・渋谷','営業経験10年以上','マネジメント歓迎'],
+    detail: `<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">仕事内容</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">製造業向けBtoB営業の統括責任者として、以下の業務をお任せします。<br><br>・営業部門全体のマネジメント（部員15名）<br>・既存顧客の深耕営業および新規顧客の開拓<br>・年間予算・売上目標の策定と達成に向けた推進<br>・取引先との商談、提案資料の作成<br>・経営会議への営業報告・戦略立案への参画</div></div><div style="margin-bottom:20px"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">必須スキル・経験</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">・法人営業経験 10年以上<br>・チームマネジメント経験 3年以上（5名以上）<br>・予算達成実績のある方</div></div><div><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">歓迎スキル・経験</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">・製造業界での営業経験<br>・SFAツール（Salesforce等）の活用経験<br>・英語でのビジネスコミュニケーション（TOEIC 700以上）</div></div>`,
+    conditions: `<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted);width:130px">雇用形態</td><td style="padding:12px 0;font-weight:500;color:var(--text-mid)">正社員</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">年収</td><td style="padding:12px 0;font-weight:500;color:var(--text-mid)">600万円〜800万円（経験・スキルにより応相談）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">勤務地</td><td style="padding:12px 0;color:var(--text-mid)">東京都渋谷区○○ 2-3-4（渋谷駅 徒歩5分）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">勤務時間</td><td style="padding:12px 0;color:var(--text-mid)">9:00〜18:00　フレックスタイム制（コアタイム10〜15時）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">休日・休暇</td><td style="padding:12px 0;color:var(--text-mid)">完全週休2日制（土・日）、祝日、年間有給20日</td></tr><tr><td style="padding:12px 0;color:var(--text-muted)">待遇・福利厚生</td><td style="padding:12px 0;color:var(--text-mid)">各種社会保険完備、交通費全額支給、健康診断補助、退職金制度</td></tr></table>`,
+    companyInfo: `<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)"><div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#1e3a5f,#2d6a9f);display:flex;align-items:center;justify-content:center;color:white;font-size:20px;font-weight:700">α</div><div><div style="font-size:16px;font-weight:700;color:var(--text)">株式会社アルファ</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">製造業 ／ 設立1985年 ／ 従業員数 320名</div></div></div><div style="font-size:13px;color:var(--text-mid);line-height:1.9;margin-bottom:16px">産業用機械部品の製造・販売を行う老舗メーカー。国内大手自動車メーカーへの納品実績を持ち、近年はEV向け部品の開発にも注力。安定した経営基盤と成長戦略の両立を追求しています。</div><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted);width:120px">業種</td><td style="padding:10px 0;color:var(--text-mid)">製造業（産業用機械部品）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted)">資本金</td><td style="padding:10px 0;color:var(--text-mid)">5,000万円</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted)">売上高</td><td style="padding:10px 0;color:var(--text-mid)">約85億円（2024年度）</td></tr><tr><td style="padding:10px 0;color:var(--text-muted)">本社所在地</td><td style="padding:10px 0;color:var(--text-mid)">東京都渋谷区○○ 2-3-4</td></tr></table>`
+  },
+  gamma: {
+    title: 'マーケティングマネージャー', company: 'ガンマフーズ ／ 飲食・流通',
+    match: 'マッチ度 85%', matchClass: 'badge-blue',
+    empType: '正社員', empClass: 'badge-blue', marginPrice: '¥5,000/件',
+    headerGradient: 'linear-gradient(135deg,#7c2d12 0%,#c2410c 55%,#ea580c 100%)',
+    subColors: ['#c2410c','#7c2d12','#ea580c'],
+    tags: ['年収500〜650万','正社員','渋谷','EC経験歓迎','デジタルマーケ'],
+    detail: `<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">仕事内容</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">ECサイトおよびリアル店舗のマーケティング戦略立案・実行をお任せします。<br><br>・自社ECサイトのマーケティング施策立案・実行<br>・SNSマーケティング（Instagram・LINE・TikTok）の運用管理<br>・広告運用（Meta・Google広告）のPDCA<br>・マーケチームのマネジメント（メンバー5名）<br>・KPI設計・レポーティング・経営陣への報告</div></div><div><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">必須スキル・経験</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">・デジタルマーケティング経験 5年以上<br>・EC事業のマーケティング経験<br>・Google Analytics、広告運用ツールの実務経験</div></div>`,
+    conditions: `<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted);width:130px">雇用形態</td><td style="padding:12px 0;font-weight:500;color:var(--text-mid)">正社員</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">年収</td><td style="padding:12px 0;font-weight:500;color:var(--text-mid)">500万円〜650万円</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">勤務地</td><td style="padding:12px 0;color:var(--text-mid)">東京都渋谷区○○ 5F（渋谷駅 徒歩3分）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">勤務時間</td><td style="padding:12px 0;color:var(--text-mid)">10:00〜19:00（フレックスあり）</td></tr><tr><td style="padding:12px 0;color:var(--text-muted)">休日・休暇</td><td style="padding:12px 0;color:var(--text-mid)">週休2日制（土・日・祝）、年間有給15日</td></tr></table>`,
+    companyInfo: `<div style="font-size:13px;color:var(--text-mid);line-height:1.9;margin-bottom:16px">飲食・食品の製造販売とECを組み合わせたD2Cブランドを展開。SNSフォロワー数50万人超、年商30億円規模の急成長企業です。</div><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted);width:120px">業種</td><td style="padding:10px 0;color:var(--text-mid)">飲食・食品EC</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted)">設立</td><td style="padding:10px 0;color:var(--text-mid)">2015年</td></tr><tr><td style="padding:10px 0;color:var(--text-muted)">従業員数</td><td style="padding:10px 0;color:var(--text-mid)">78名</td></tr></table>`
+  },
+  epsilon: {
+    title: '現場補助スタッフ', company: 'イプシロン建設 ／ 建設',
+    match: 'マッチ度 71%', matchClass: 'badge-amber',
+    empType: 'アルバイト・短期', empClass: 'badge-amber', marginPrice: '¥2,000/件',
+    headerGradient: 'linear-gradient(135deg,#374151 0%,#6b7280 55%,#9ca3af 100%)',
+    subColors: ['#6b7280','#374151','#9ca3af'],
+    tags: ['時給1,200〜1,500円','アルバイト・短期','新宿','未経験歓迎','週3日〜','交通費支給'],
+    detail: `<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">仕事内容</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">建設現場での補助作業全般をお任せします。未経験からはじめる方も大歓迎！<br><br>・資材の搬入・整理整頓<br>・職人さんへの補助作業（工具・材料の準備等）<br>・現場の清掃・片付け<br>・安全確認補助（ヘルメット・安全靴貸与あり）</div></div><div><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">応募資格</div><div style="font-size:13px;color:var(--text-mid);line-height:1.9">・18歳以上<br>・体を動かすことが好きな方<br>・週3日以上シフト可能な方<br>※資格・経験不問。研修あり。</div></div>`,
+    conditions: `<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted);width:130px">雇用形態</td><td style="padding:12px 0;font-weight:500;color:var(--text-mid)">アルバイト（短期）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">時給</td><td style="padding:12px 0;font-weight:500;color:var(--text-mid)">1,200円〜1,500円（経験による）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">勤務地</td><td style="padding:12px 0;color:var(--text-mid)">東京都新宿区内 各現場（新宿駅集合）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">勤務時間</td><td style="padding:12px 0;color:var(--text-mid)">8:00〜17:00（休憩1時間）</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 0;color:var(--text-muted)">シフト</td><td style="padding:12px 0;color:var(--text-mid)">週3日〜（曜日・日数応相談）</td></tr><tr><td style="padding:12px 0;color:var(--text-muted)">交通費</td><td style="padding:12px 0;color:var(--text-mid)">全額支給</td></tr></table>`,
+    companyInfo: `<div style="font-size:13px;color:var(--text-mid);line-height:1.9;margin-bottom:16px">首都圏を中心にマンション・商業施設の内装工事を手がける建設会社。アルバイトからのステップアップも積極的に支援しています。</div><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted);width:120px">業種</td><td style="padding:10px 0;color:var(--text-mid)">建設・内装工事</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 0;color:var(--text-muted)">設立</td><td style="padding:10px 0;color:var(--text-mid)">2001年</td></tr><tr><td style="padding:10px 0;color:var(--text-muted)">従業員数</td><td style="padding:10px 0;color:var(--text-mid)">42名（うちアルバイト18名）</td></tr></table>`
+  }
+};
+
+function showJobDetail(key) {
+  const d = jobDetailData[key];
+  if (!d) return;
+  // Header
+  const mainDiv = document.getElementById('jd-img-main');
+  mainDiv.style.cssText = `height:220px;position:relative;background:${d.headerGradient};overflow:hidden`;
+  mainDiv.innerHTML = `
+    <div style="position:absolute;top:16px;left:18px;display:flex;gap:8px">
+      <span class="badge ${d.empClass}" style="font-size:12px;padding:4px 12px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4)">${d.empType}</span>
+    </div>
+    <div style="position:absolute;top:16px;right:18px">
+      <span class="badge ${d.matchClass}" style="font-size:12px;padding:4px 12px">${d.match}</span>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 20px 18px;background:linear-gradient(to top,rgba(0,0,0,0.55),transparent)">
+      <div style="font-size:24px;font-weight:700;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.5)">${d.title}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px">${d.company}</div>
+    </div>
+  `;
+  // Sub strip
+  const strip = document.getElementById('jd-img-strip');
+  strip.innerHTML = d.subColors.map(c => `<div style="flex:1;background:${c};opacity:0.85"></div>`).join('');
+  // Content
+  document.getElementById('jd-title').textContent = d.title;
+  document.getElementById('jd-company').textContent = d.company;
+  document.getElementById('jd-match').textContent = d.match;
+  document.getElementById('jd-match').className = 'badge ' + d.matchClass;
+  document.getElementById('jd-tags').innerHTML = d.tags.map(t => `<span class="job-tag">${t}</span>`).join('');
+  document.getElementById('jd-detail-body').innerHTML = d.detail;
+  document.getElementById('jd-cond-body').innerHTML = d.conditions;
+  document.getElementById('jd-company-body').innerHTML = d.companyInfo;
+  // Apply panel
+  document.getElementById('jd-apply-title').textContent = d.title;
+  document.getElementById('jd-apply-company').textContent = d.company.split(' ／')[0];
+  document.getElementById('jd-applied-msg').style.display = 'none';
+  const btn = document.getElementById('jd-apply-btn');
+  btn.textContent = 'この求人に応募する'; btn.disabled = false; btn.style.opacity = '1';
+  // Reset tabs
+  document.querySelectorAll('#c-job-detail .inner-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('#c-job-detail .inner-tab').classList.add('active');
+  document.getElementById('jd-tab-detail').style.display = 'block';
+  document.getElementById('jd-tab-conditions').style.display = 'none';
+  document.getElementById('jd-tab-company').style.display = 'none';
+  showCandidatePage('c-job-detail');
+}
+
+function switchJdTab(tabId, el) {
+  ['jd-tab-detail','jd-tab-conditions','jd-tab-company'].forEach(id => {
+    document.getElementById(id).style.display = id === tabId ? 'block' : 'none';
+  });
+  document.querySelectorAll('#c-job-detail .inner-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function applyFromDetail() {
+  const title = document.getElementById('jd-apply-title').textContent;
+  const btn = document.getElementById('jd-apply-btn');
+  btn.textContent = '応募済み ✓'; btn.disabled = true; btn.style.opacity = '0.6';
+  document.getElementById('jd-applied-msg').style.display = 'block';
+  showToast(`「${title}」に応募しました。確認メールを送信しました。`);
+}
+
+function applyToJob(company, title) {
+  showToast(`「${title}（${company}）」に応募しました。確認メールを送信しました。`);
+}
+
+// ─── Plan selection ───────────────────────────────────────
+let currentPlan = 'std';
+
+const planDefs = {
+  std:    { name:'スタンダード（無料）',       badge:'' },
+  silver: { name:'シルバープラン（¥20,000/月）', badge:`<span style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,#64748b,#94a3b8);color:white;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700">SILVER</span>` },
+  gold:   { name:'ゴールドプラン（¥30,000/月）', badge:`<span style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg,#d97706,#fbbf24);color:white;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700">★ GOLD</span>` }
+};
+
+function selectPlan(type) {
+  currentPlan = type;
+  ['std','silver','gold'].forEach(t => {
+    const el = document.getElementById('plan-' + t);
+    const btnEl = document.getElementById('plan-' + t + '-btn');
+    if (!el) return;
+    const isActive = t === type;
+    if (t === 'std') {
+      el.style.border = isActive ? '2px solid var(--accent)' : '2px solid var(--border)';
+      el.style.background = isActive ? 'var(--accent-pale)' : 'var(--white)';
+      if (btnEl) { btnEl.style.background = isActive ? 'var(--gray-mid)' : 'var(--gray-light)'; btnEl.textContent = isActive ? '選択中' : 'このプランを選ぶ'; }
+    } else if (t === 'silver') {
+      el.style.border = isActive ? '2px solid #64748b' : '2px solid var(--border)';
+      el.style.background = isActive ? '#f1f5f9' : 'var(--white)';
+      if (btnEl) { btnEl.style.background = isActive ? '#475569' : '#94a3b8'; btnEl.textContent = isActive ? '選択中 ✓' : 'このプランを選ぶ'; }
+    } else if (t === 'gold') {
+      el.style.border = isActive ? '2px solid #d97706' : '2px solid var(--border)';
+      el.style.background = isActive ? '#fffbeb' : 'var(--white)';
+      if (btnEl) { btnEl.textContent = isActive ? '選択中 ✓' : 'このプランを選ぶ'; }
+    }
+  });
+  // Update summary
+  const def = planDefs[type];
+  document.getElementById('plan-summary-name').textContent = def.name;
+  const badgeEl = document.getElementById('plan-summary-badge');
+  if (badgeEl) badgeEl.innerHTML = def.badge;
+  showToast(`「${def.name}」を選択しました`);
+}
+
+// Keep old stubs to avoid errors
+function selectMonth() {}
+function selectCredit() {}
+
+// ─── Login / Logout ───────────────────────────────────────
+const ACCOUNTS = {
+  admin:     { pw: 'admin123',  role: 'admin',     label: '管理者',      portal: 'admin' },
+  employer:  { pw: 'emp123',    role: 'employer',  label: '株式会社アルファ', portal: 'employer' },
+  candidate: { pw: 'cand123',   role: 'candidate', label: '田中 陽子',   portal: 'candidate' }
+};
+
+// ─── GAS接続設定 ──────────────────────────────────────────
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx8ObA0oP9xfld-VY7fb-khLrJuIZvdGNZPgr4dvjUKqiOAwEbIfafPa54qPKrqDpN_dQ/exec';
+
+async function gasCall(action, body = {}) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action, ...body }),
+    redirect: 'follow',
+  });
+  return res.json();
+}
+
+async function gasGet(action, params = {}) {
+  const query = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch(`${GAS_URL}?${query}`, { redirect: 'follow' });
+  return res.json();
+}
+
+let currentRole = 'admin';
+
+function selectRole(role, btn) {
+  currentRole = role;
+  document.querySelectorAll('.login-role-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-id').placeholder = role === 'admin' ? 'admin' : role === 'employer' ? 'employer' : 'candidate';
+}
+
+async function doLogin() {
+  const id    = document.getElementById('login-id').value.trim();
+  const pw    = document.getElementById('login-pw').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.querySelector('.login-btn');
+
+  if (!id || !pw) {
+    errEl.textContent = 'IDとパスワードを入力してください。';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // ボタンをローディング状態に
+  btn.textContent = '確認中...';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  try {
+    // まずGASで認証を試みる
+    const data = await gasCall('login', { id, password: pw });
+
+    if (data.ok) {
+      // GASログイン成功
+      enterPortal(data.role, data.name);
+      return;
+    }
+
+    // GASがNGの場合はデモアカウントでフォールバック
+    const account = ACCOUNTS[id];
+    if (account && account.pw === pw) {
+      enterPortal(account.role, account.label);
+      return;
+    }
+
+    // 両方NG
+    errEl.textContent = 'IDまたはパスワードが正しくありません。';
+    errEl.style.display = 'block';
+    document.getElementById('login-pw').style.borderColor = 'var(--red)';
+    setTimeout(() => { document.getElementById('login-pw').style.borderColor = ''; }, 2000);
+
+  } catch (e) {
+    // GAS接続エラー → デモアカウントでフォールバック
+    console.warn('GAS接続エラー、デモモードで動作:', e.message);
+    const account = ACCOUNTS[id];
+    if (account && account.pw === pw) {
+      enterPortal(account.role, account.label);
+      showToast('オフラインモードでログインしました');
+      return;
+    }
+    errEl.textContent = 'IDまたはパスワードが正しくありません。';
+    errEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'ログイン';
+    btn.disabled = false;
+  }
+}
+
+function enterPortal(role, name) {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('portal-switcher').style.display = 'flex';
+  ['admin','employer','candidate'].forEach(p => {
+    document.getElementById('portal-' + p).style.display = 'none';
+    const tabs = document.getElementById('switcher-tabs-' + p);
+    if (tabs) tabs.style.display = 'none';
+  });
+  document.getElementById('portal-' + role).style.display = 'block';
+  document.getElementById('portal-' + role).classList.add('active');
+  const tabs = document.getElementById('switcher-tabs-' + role);
+  if (tabs) tabs.style.display = 'flex';
+  document.getElementById('login-user-label').textContent = name + ' さん';
+}
+
+function doLogout() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('portal-switcher').style.display = 'none';
+  ['admin','employer','candidate'].forEach(p => {
+    const el = document.getElementById('portal-' + p);
+    el.style.display = 'none';
+    el.classList.remove('active');
+  });
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  showLogin();
+}
+
+function togglePw() {
+  const input = document.getElementById('login-pw');
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  document.getElementById('pw-eye').style.opacity = isText ? '1' : '0.4';
+}
+
+// Enterキーでログイン
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('login-screen').classList.contains('hidden')) {
+    doLogin();
+  }
+});
+
+// ─── Password Reset ───────────────────────────────────────
+function showReset() {
+  document.getElementById('login-box').style.display = 'none';
+  const rb = document.getElementById('reset-box');
+  rb.classList.add('active');
+  document.querySelectorAll('.reset-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('reset-step-1').classList.add('active');
+}
+
+function showLogin() {
+  document.getElementById('login-box').style.display = 'block';
+  document.getElementById('reset-box').classList.remove('active');
+}
+
+async function sendResetLink() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email || !email.includes('@')) {
+    document.getElementById('reset-email').style.borderColor = 'var(--red)';
+    setTimeout(() => { document.getElementById('reset-email').style.borderColor = ''; }, 2000);
+    return;
+  }
+  try {
+    await gasCall('resetPassword', { email });
+  } catch(e) {
+    console.warn('GAS再発行エラー:', e.message);
+  }
+  // GAS成否に関わらず完了画面へ（セキュリティのため）
+  document.getElementById('reset-email-display').textContent = email;
+  document.getElementById('reset-step-1').classList.remove('active');
+  document.getElementById('reset-step-2').classList.add('active');
+}
+
+function checkStrength(val) {
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Za-z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const labels = ['','弱い','普通','強い','非常に強い'];
+  const colors = ['','#dc2626','#d97706','#059669','#1d4ed8'];
+  const widths = ['0%','25%','50%','75%','100%'];
+  document.getElementById('pw-strength-label').textContent = labels[score] || '—';
+  document.getElementById('pw-strength-fill').style.width = widths[score];
+  document.getElementById('pw-strength-fill').style.background = colors[score];
+}
+
+function setNewPassword() {
+  const pw = document.getElementById('new-pw').value;
+  const confirm = document.getElementById('new-pw-confirm').value;
+  const errEl = document.getElementById('pw-reset-error');
+  if (pw.length < 8) {
+    errEl.textContent = 'パスワードは8文字以上で設定してください。';
+    errEl.style.display = 'block'; return;
+  }
+  if (pw !== confirm) {
+    errEl.textContent = 'パスワードが一致しません。';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+  showToast('パスワードを更新しました。新しいパスワードでログインしてください。');
+  showLogin();
+}
+</script>
+</body>
+</html>
